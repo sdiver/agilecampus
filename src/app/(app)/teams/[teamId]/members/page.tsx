@@ -24,6 +24,8 @@ export default async function MembersPage({
   if (!me) notFound();
 
   const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+  if (!team) notFound();
+
   const members = await db
     .select({ userId: users.id, name: users.name, email: users.email, role: teamMembers.role })
     .from(teamMembers)
