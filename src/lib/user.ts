@@ -4,6 +4,12 @@ import { eq } from "drizzle-orm";
 import { hashPassword } from "./password";
 import { AppError } from "./errors";
 
+// postgres 唯一键冲突。drizzle 会把驱动错误包装为 DrizzleQueryError（code 在 cause 上），故两处都查
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string }).code ?? ((e as { cause?: { code?: string } }).cause?.code);
+  return code === "23505";
+}
+
 export async function createUser(input: {
   email: string;
   password: string;
@@ -17,9 +23,15 @@ export async function createUser(input: {
   if (existing) throw new AppError("该邮箱已被注册");
 
   const passwordHash = await hashPassword(input.password);
-  const [user] = await db
-    .insert(users)
-    .values({ email, passwordHash, name: input.name })
-    .returning({ id: users.id, email: users.email, name: users.name });
-  return user;
+  try {
+    const [user] = await db
+      .insert(users)
+      .values({ email, passwordHash, name: input.name })
+      .returning({ id: users.id, email: users.email, name: users.name });
+    return user;
+  } catch (e) {
+    // 查重与插入之间的并发窗口：另一请求已抢先注册，由 DB 唯一约束兜底
+    if (isUniqueViolation(e)) throw new AppError("该邮箱已被注册");
+    throw e;
+  }
 }
