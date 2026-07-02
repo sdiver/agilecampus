@@ -59,6 +59,7 @@ describe("createUser", () => {
 
     await inserted;
     const pending = createUser({ email, password: "password123", name: "后" });
+    pending.catch(() => {}); // 预挂 handler，消除拒绝早于断言挂接的瞬时 unhandled rejection
     await new Promise((r) => setTimeout(r, 300)); // 让 createUser 完成查重并阻塞于 insert
     releaseTx();
     await tx;
