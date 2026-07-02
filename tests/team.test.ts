@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
-import { createTeam, joinTeam } from "@/lib/team";
+import { createTeam, joinTeam, requireTeamRole, updateMemberRole } from "@/lib/team";
 import { AppError } from "@/lib/errors";
 import { resetDb } from "./helpers";
 import { db } from "@/db";
@@ -85,5 +85,59 @@ describe("joinTeam", () => {
 
     await expect(pending).rejects.toBeInstanceOf(AppError);
     await expect(pending).rejects.toThrow("已在该团队中");
+  });
+});
+
+describe("requireTeamRole", () => {
+  beforeEach(resetDb);
+
+  it("角色在允许列表内则返回成员记录", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const m = await requireTeamRole(owner.id, team.id, ["admin"]);
+    expect(m.role).toBe("admin");
+  });
+
+  it("非成员抛 ForbiddenError", async () => {
+    const owner = await makeUser("owner@example.com");
+    const outsider = await makeUser("outsider@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    await expect(requireTeamRole(outsider.id, team.id, ["admin", "teacher", "student"]))
+      .rejects.toThrow("没有权限");
+  });
+
+  it("角色不足抛 ForbiddenError", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const student = await makeUser("student@example.com");
+    await joinTeam(student.id, team.inviteCode);
+    await expect(requireTeamRole(student.id, team.id, ["admin"]))
+      .rejects.toThrow("没有权限");
+  });
+});
+
+describe("updateMemberRole", () => {
+  beforeEach(resetDb);
+
+  it("admin 可将成员改为 teacher", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const member = await makeUser("t@example.com");
+    await joinTeam(member.id, team.inviteCode);
+
+    const updated = await updateMemberRole(owner.id, team.id, member.id, "teacher");
+    expect(updated.role).toBe("teacher");
+  });
+
+  it("student 无权改角色", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const s1 = await makeUser("s1@example.com");
+    const s2 = await makeUser("s2@example.com");
+    await joinTeam(s1.id, team.inviteCode);
+    await joinTeam(s2.id, team.inviteCode);
+
+    await expect(updateMemberRole(s1.id, team.id, s2.id, "teacher"))
+      .rejects.toThrow("没有权限");
   });
 });
