@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
-import { createTeam, joinTeam, requireTeamRole, updateMemberRole } from "@/lib/team";
+import { createTeam, getTeamMembership, joinTeam, requireTeamRole, updateMemberRole } from "@/lib/team";
 import { AppError } from "@/lib/errors";
 import { resetDb } from "./helpers";
 import { db } from "@/db";
@@ -88,6 +88,26 @@ describe("joinTeam", () => {
   });
 });
 
+describe("getTeamMembership", () => {
+  beforeEach(resetDb);
+
+  it("成员返回记录（含 role）", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const m = await getTeamMembership(owner.id, team.id);
+    expect(m).not.toBeNull();
+    expect(m!.role).toBe("admin");
+  });
+
+  it("非成员返回 null", async () => {
+    const owner = await makeUser("owner@example.com");
+    const outsider = await makeUser("outsider@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const m = await getTeamMembership(outsider.id, team.id);
+    expect(m).toBeNull();
+  });
+});
+
 describe("requireTeamRole", () => {
   beforeEach(resetDb);
 
@@ -112,6 +132,19 @@ describe("requireTeamRole", () => {
     const student = await makeUser("student@example.com");
     await joinTeam(student.id, team.inviteCode);
     await expect(requireTeamRole(student.id, team.id, ["admin"]))
+      .rejects.toThrow("没有权限");
+  });
+
+  it("teacher 矩阵：允许列表含 teacher 则通过，仅 admin 则拒", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const teacher = await makeUser("teacher@example.com");
+    await joinTeam(teacher.id, team.inviteCode);
+    await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
+
+    const m = await requireTeamRole(teacher.id, team.id, ["admin", "teacher"]);
+    expect(m.role).toBe("teacher");
+    await expect(requireTeamRole(teacher.id, team.id, ["admin"]))
       .rejects.toThrow("没有权限");
   });
 });
@@ -139,5 +172,14 @@ describe("updateMemberRole", () => {
 
     await expect(updateMemberRole(s1.id, team.id, s2.id, "teacher"))
       .rejects.toThrow("没有权限");
+  });
+
+  it("目标用户不在团队中抛可展示错误", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const outsider = await makeUser("outsider@example.com");
+
+    await expect(updateMemberRole(owner.id, team.id, outsider.id, "teacher"))
+      .rejects.toThrow("该成员不在团队中");
   });
 });

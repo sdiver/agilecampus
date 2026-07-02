@@ -42,15 +42,20 @@ export async function joinTeam(userId: string, inviteCode: string) {
   }
 }
 
+export async function getTeamMembership(userId: string, teamId: string) {
+  const [member] = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  return member ?? null;
+}
+
 export async function requireTeamRole(
   userId: string,
   teamId: string,
   allowed: TeamRole[],
 ) {
-  const [member] = await db
-    .select()
-    .from(teamMembers)
-    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  const member = await getTeamMembership(userId, teamId);
   if (!member || !allowed.includes(member.role)) throw new ForbiddenError();
   return member;
 }
