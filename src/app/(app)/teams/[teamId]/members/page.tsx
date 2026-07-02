@@ -45,7 +45,8 @@ export default async function MembersPage({
               <form action={updateRoleAction} className="flex items-center gap-2">
                 <input type="hidden" name="teamId" value={teamId} />
                 <input type="hidden" name="userId" value={m.userId} />
-                <select name="role" defaultValue={m.role} className="rounded border p-1 text-sm">
+                {/* key=role：角色变更后强制重挂载，使 defaultValue 重新采纳（非受控 select 不更新已挂载节点） */}
+                <select key={m.role} name="role" defaultValue={m.role} className="rounded border p-1 text-sm">
                   <option value="admin">admin</option>
                   <option value="teacher">teacher</option>
                   <option value="student">student</option>
