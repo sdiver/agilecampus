@@ -2,13 +2,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "./password";
-import { AppError } from "./errors";
-
-// postgres 唯一键冲突。drizzle 会把驱动错误包装为 DrizzleQueryError（code 在 cause 上），故两处都查
-function isUniqueViolation(e: unknown): boolean {
-  const code = (e as { code?: string }).code ?? ((e as { cause?: { code?: string } }).cause?.code);
-  return code === "23505";
-}
+import { AppError, isUniqueViolation } from "./errors";
 
 export async function createUser(input: {
   email: string;

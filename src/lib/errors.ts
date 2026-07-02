@@ -6,3 +6,9 @@ export class ForbiddenError extends AppError {
     super(message);
   }
 }
+
+// postgres 唯一键冲突。drizzle 会把驱动错误包装为 DrizzleQueryError（code 在 cause 上），故两处都查
+export function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string }).code ?? ((e as { cause?: { code?: string } }).cause?.code);
+  return code === "23505";
+}
