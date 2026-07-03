@@ -1,0 +1,129 @@
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  milestones,
+  tasks,
+  users,
+  type TaskPriority,
+  type TaskStatus,
+} from "@/db/schema";
+import { AppError, ForbiddenError } from "./errors";
+import { getTeamMembership } from "./team";
+import { getProjectForUser } from "./project";
+
+// 任务写操作角色：admin + student（teacher 只读，设计文档 §5）
+const TASK_WRITE_ROLES = ["admin", "student"];
+
+async function requireProjectAccess(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError();
+  return access;
+}
+
+async function requireTaskWrite(actorId: string, projectId: string) {
+  const access = await requireProjectAccess(actorId, projectId);
+  if (!TASK_WRITE_ROLES.includes(access.role)) throw new ForbiddenError();
+  return access;
+}
+
+async function validateAssignee(teamId: string, assigneeId: string) {
+  const membership = await getTeamMembership(assigneeId, teamId);
+  if (!membership) throw new AppError("负责人不是团队成员");
+}
+
+async function validateMilestone(projectId: string, milestoneId: string) {
+  const [m] = await db
+    .select({ id: milestones.id })
+    .from(milestones)
+    .where(and(eq(milestones.id, milestoneId), eq(milestones.projectId, projectId)));
+  if (!m) throw new AppError("里程碑不属于该项目");
+}
+
+export async function createTask(
+  actorId: string,
+  projectId: string,
+  input: {
+    title: string;
+    description?: string;
+    assigneeId?: string;
+    dueDate?: string;
+    milestoneId?: string;
+    priority?: TaskPriority;
+  },
+) {
+  const access = await requireTaskWrite(actorId, projectId);
+  if (input.assigneeId) await validateAssignee(access.project.teamId, input.assigneeId);
+  if (input.milestoneId) await validateMilestone(projectId, input.milestoneId);
+
+  const [task] = await db
+    .insert(tasks)
+    .values({
+      projectId,
+      title: input.title,
+      description: input.description,
+      assigneeId: input.assigneeId,
+      dueDate: input.dueDate,
+      milestoneId: input.milestoneId,
+      priority: input.priority ?? "medium",
+      sortOrder: Date.now(),
+    })
+    .returning();
+  return task;
+}
+
+export async function updateTask(
+  actorId: string,
+  taskId: string,
+  patch: {
+    title?: string;
+    description?: string | null;
+    assigneeId?: string | null;
+    dueDate?: string | null;
+    milestoneId?: string | null;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+  },
+) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+
+  const access = await requireTaskWrite(actorId, task.projectId);
+  if (patch.assigneeId) await validateAssignee(access.project.teamId, patch.assigneeId);
+  if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
+
+  const [updated] = await db
+    .update(tasks)
+    // updatedAt 取 DB 时钟（now()）而非宿主机 new Date()：与 createdAt 的 defaultNow() 同源，保证单调性
+    .set({ ...patch, updatedAt: sql`now()` })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  return updated;
+}
+
+export async function deleteTask(actorId: string, taskId: string) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+  await requireTaskWrite(actorId, task.projectId);
+  await db.delete(tasks).where(eq(tasks.id, taskId));
+}
+
+export async function listProjectTasks(actorId: string, projectId: string) {
+  await requireProjectAccess(actorId, projectId);
+  return db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueDate: tasks.dueDate,
+      sortOrder: tasks.sortOrder,
+      milestoneId: tasks.milestoneId,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(eq(tasks.projectId, projectId))
+    .orderBy(tasks.sortOrder);
+}
