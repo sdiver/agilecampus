@@ -10,8 +10,8 @@ const schema = z.object({
   teamId: z.uuid(),
   name: z.string().trim().min(1, "请填写项目名称"),
   description: z.string().trim().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: z.iso.date("日期格式不正确").optional(),
+  endDate: z.iso.date("日期格式不正确").optional(),
 });
 
 export type FormState = { error: string } | null;
