@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createTask } from "@/lib/task";
+import { createTask, updateTask } from "@/lib/task";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
@@ -74,6 +74,35 @@ export async function createMilestoneAction(
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "仅团队管理员可创建里程碑" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const moveTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  status: z.enum(["todo", "doing", "done"]),
+});
+
+export async function moveTaskAction(input: {
+  taskId: string;
+  projectId: string;
+  status: "todo" | "doing" | "done";
+}): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const parsed = moveTaskSchema.safeParse(input);
+  if (!parsed.success) return { error: "参数无效" };
+
+  try {
+    await updateTask(session.user.id, parsed.data.taskId, {
+      status: parsed.data.status,
+    });
+  } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

@@ -6,12 +6,7 @@ import { listTeamMembers } from "@/lib/team";
 import { listProjectTasks } from "@/lib/task";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
-
-const COLUMNS = [
-  { key: "todo", label: "待办" },
-  { key: "doing", label: "进行中" },
-  { key: "done", label: "已完成" },
-] as const;
+import { Board } from "./board";
 
 export default async function ProjectPage({
   params,
@@ -56,25 +51,18 @@ export default async function ProjectPage({
 
       <section className="space-y-3">
         <h2 className="font-medium">看板</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {COLUMNS.map((col) => (
-            <div key={col.key} className="space-y-2 rounded border bg-gray-50 p-3">
-              <h3 className="text-sm font-medium text-gray-600">{col.label}</h3>
-              {projectTasks
-                .filter((t) => t.status === col.key)
-                .map((t) => (
-                  <div key={t.id} className="rounded border bg-white p-2 text-sm">
-                    <p className="font-medium">{t.title}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {t.assigneeName ?? "未分配"}
-                      {t.dueDate && ` · ${t.dueDate}`}
-                      {` · ${t.priority}`}
-                    </p>
-                  </div>
-                ))}
-            </div>
-          ))}
-        </div>
+        <Board
+          projectId={projectId}
+          tasks={projectTasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            priority: t.priority,
+            dueDate: t.dueDate,
+            assigneeName: t.assigneeName,
+          }))}
+          canWrite={canWrite}
+        />
       </section>
 
       {canWrite && (
