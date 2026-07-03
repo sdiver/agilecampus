@@ -4,13 +4,13 @@ import { useOptimistic, useState, useTransition } from "react";
 import {
   DndContext,
   PointerSensor,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { moveTaskAction } from "./actions";
+import { TaskCard, type Option } from "./task-card";
 
 export type BoardTask = {
   id: string;
@@ -19,6 +19,8 @@ export type BoardTask = {
   priority: string;
   dueDate: string | null;
   assigneeName: string | null;
+  assigneeId: string | null;
+  milestoneId: string | null;
 };
 
 const COLUMNS = [
@@ -29,46 +31,22 @@ const COLUMNS = [
 
 type ColumnKey = (typeof COLUMNS)[number]["key"];
 
-function TaskCard({ task, canWrite }: { task: BoardTask; canWrite: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-    disabled: !canWrite,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      style={
-        transform
-          ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
-          : undefined
-      }
-      className={`rounded border bg-white p-2 text-sm ${
-        canWrite ? "cursor-grab" : ""
-      } ${isDragging ? "opacity-50" : ""}`}
-    >
-      <p className="font-medium">{task.title}</p>
-      <p className="mt-1 text-xs text-gray-500">
-        {task.assigneeName ?? "未分配"}
-        {task.dueDate && ` · ${task.dueDate}`}
-        {` · ${task.priority}`}
-      </p>
-    </div>
-  );
-}
-
 function Column({
   columnKey,
   label,
   tasks,
+  projectId,
   canWrite,
+  members,
+  milestones,
 }: {
   columnKey: ColumnKey;
   label: string;
   tasks: BoardTask[];
+  projectId: string;
   canWrite: boolean;
+  members: Option[];
+  milestones: Option[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: columnKey });
 
@@ -83,7 +61,14 @@ function Column({
         {label} <span className="text-xs text-gray-400">{tasks.length}</span>
       </h3>
       {tasks.map((t) => (
-        <TaskCard key={t.id} task={t} canWrite={canWrite} />
+        <TaskCard
+          key={t.id}
+          task={t}
+          projectId={projectId}
+          canWrite={canWrite}
+          members={members}
+          milestones={milestones}
+        />
       ))}
     </div>
   );
@@ -93,10 +78,14 @@ export function Board({
   projectId,
   tasks,
   canWrite,
+  members,
+  milestones,
 }: {
   projectId: string;
   tasks: BoardTask[];
   canWrite: boolean;
+  members: Option[];
+  milestones: Option[];
 }) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +124,10 @@ export function Board({
             columnKey={col.key}
             label={col.label}
             tasks={optimisticTasks.filter((t) => t.status === col.key)}
+            projectId={projectId}
             canWrite={canWrite}
+            members={members}
+            milestones={milestones}
           />
         ))}
       </div>

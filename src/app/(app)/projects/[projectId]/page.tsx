@@ -60,8 +60,12 @@ export default async function ProjectPage({
             priority: t.priority,
             dueDate: t.dueDate,
             assigneeName: t.assigneeName,
+            assigneeId: t.assigneeId,
+            milestoneId: t.milestoneId,
           }))}
           canWrite={canWrite}
+          members={members}
+          milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
         />
       </section>
 

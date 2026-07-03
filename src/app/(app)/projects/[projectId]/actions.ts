@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createTask, updateTask } from "@/lib/task";
+import { createTask, updateTask, deleteTask } from "@/lib/task";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
@@ -103,6 +103,76 @@ export async function moveTaskAction(input: {
       status: parsed.data.status,
     });
   } catch (e) {
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const updateTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  title: z.string().trim().min(1, "标题不可为空"),
+  assigneeId: z.uuid().optional(),
+  milestoneId: z.uuid().optional(),
+  dueDate: z.iso.date("日期格式不正确").optional(),
+  priority: z.enum(["low", "medium", "high"]),
+});
+
+export async function updateTaskAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = updateTaskSchema.safeParse({
+    ...raw,
+    assigneeId: raw.assigneeId || undefined,
+    milestoneId: raw.milestoneId || undefined,
+    dueDate: raw.dueDate || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { taskId, projectId, ...patch } = parsed.data;
+  try {
+    await updateTask(session.user.id, taskId, {
+      title: patch.title,
+      assigneeId: patch.assigneeId ?? null,
+      milestoneId: patch.milestoneId ?? null,
+      dueDate: patch.dueDate ?? null,
+      priority: patch.priority,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限修改任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${projectId}`);
+  return null;
+}
+
+const deleteTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+});
+
+export async function deleteTaskAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const parsed = deleteTaskSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "参数无效" };
+
+  try {
+    await deleteTask(session.user.id, parsed.data.taskId);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限删除任务" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
