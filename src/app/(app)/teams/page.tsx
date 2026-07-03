@@ -32,9 +32,14 @@ export default async function TeamsPage() {
               <span className="ml-2 text-xs text-gray-500">角色：{t.role}</span>
               <span className="ml-2 text-xs text-gray-400">邀请码：{t.inviteCode}</span>
             </div>
-            <Link href={`/teams/${t.id}/members`} className="text-sm underline">
-              成员管理
-            </Link>
+            <div className="flex gap-3">
+              <Link href={`/teams/${t.id}/projects`} className="text-sm underline">
+                项目
+              </Link>
+              <Link href={`/teams/${t.id}/members`} className="text-sm underline">
+                成员管理
+              </Link>
+            </div>
           </li>
         ))}
         {myTeams.length === 0 && (
