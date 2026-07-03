@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -99,6 +99,7 @@ export function Board({
   canWrite: boolean;
 }) {
   const [, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,
     (current, move: { taskId: string; status: ColumnKey }) =>
@@ -113,17 +114,20 @@ export function Board({
     const over = event.over?.id;
     if (!over) return;
     const status = over as ColumnKey;
-    const task = tasks.find((t) => t.id === taskId);
+    const task = optimisticTasks.find((t) => t.id === taskId);
     if (!task || task.status === status) return;
 
     startTransition(async () => {
+      setError(null);
       moveOptimistic({ taskId, status });
-      await moveTaskAction({ taskId, projectId, status });
+      const res = await moveTaskAction({ taskId, projectId, status });
+      if (res?.error) setError(res.error);
     });
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext id={`board-${projectId}`} sensors={sensors} onDragEnd={handleDragEnd}>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="grid grid-cols-3 gap-4">
         {COLUMNS.map((col) => (
           <Column
