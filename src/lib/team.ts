@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/db";
-import { teamMembers, teams, type TeamRole } from "@/db/schema";
+import { teamMembers, teams, users, type TeamRole } from "@/db/schema";
 import { AppError, ForbiddenError, isUniqueViolation } from "./errors";
 
 export async function createTeam(userId: string, name: string) {
@@ -58,6 +58,15 @@ export async function requireTeamRole(
   const member = await getTeamMembership(userId, teamId);
   if (!member || !allowed.includes(member.role)) throw new ForbiddenError();
   return member;
+}
+
+// 无权限前置：调用方须已校验访问权（如 getProjectForUser / requireTeamRole）后再调用
+export async function listTeamMembers(teamId: string) {
+  return db
+    .select({ id: users.id, name: users.name, role: teamMembers.role })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(eq(teamMembers.teamId, teamId));
 }
 
 export async function updateMemberRole(

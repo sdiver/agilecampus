@@ -1,10 +1,8 @@
-import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { teamMembers, users } from "@/db/schema";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
+import { listTeamMembers } from "@/lib/team";
 import { listProjectTasks } from "@/lib/task";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
@@ -32,11 +30,7 @@ export default async function ProjectPage({
   const [projectMilestones, projectTasks, members] = await Promise.all([
     listProjectMilestones(session.user.id, projectId),
     listProjectTasks(session.user.id, projectId),
-    db
-      .select({ id: users.id, name: users.name })
-      .from(teamMembers)
-      .innerJoin(users, eq(teamMembers.userId, users.id))
-      .where(eq(teamMembers.teamId, project.teamId)),
+    listTeamMembers(project.teamId),
   ]);
 
   const canWrite = role === "admin" || role === "student";

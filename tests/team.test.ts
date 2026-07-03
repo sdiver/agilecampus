@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
-import { createTeam, getTeamMembership, joinTeam, requireTeamRole, updateMemberRole } from "@/lib/team";
+import { createTeam, getTeamMembership, joinTeam, listTeamMembers, requireTeamRole, updateMemberRole } from "@/lib/team";
 import { AppError } from "@/lib/errors";
 import { resetDb } from "./helpers";
 import { db } from "@/db";
@@ -146,6 +146,36 @@ describe("requireTeamRole", () => {
     expect(m.role).toBe("teacher");
     await expect(requireTeamRole(teacher.id, team.id, ["admin"]))
       .rejects.toThrow("没有权限");
+  });
+});
+
+describe("listTeamMembers", () => {
+  beforeEach(resetDb);
+
+  it("返回团队全员（含 role）", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const teacher = await makeUser("teacher@example.com");
+    await joinTeam(teacher.id, team.inviteCode);
+    await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
+
+    const list = await listTeamMembers(team.id);
+    expect(list).toHaveLength(2);
+    expect(list.find((m) => m.id === owner.id)?.role).toBe("admin");
+    const t = list.find((m) => m.id === teacher.id);
+    expect(t?.role).toBe("teacher");
+    expect(t?.name).toBe("teacher");
+  });
+
+  it("不含他团队成员", async () => {
+    const owner = await makeUser("owner@example.com");
+    const team = await createTeam(owner.id, "东吴实验室");
+    const other = await makeUser("other@example.com");
+    await createTeam(other.id, "曹魏参谋部");
+
+    const list = await listTeamMembers(team.id);
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe(owner.id);
   });
 });
 
