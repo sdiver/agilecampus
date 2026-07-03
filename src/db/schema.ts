@@ -5,6 +5,9 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  date,
+  doublePrecision,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
@@ -39,4 +42,71 @@ export const teamMembers = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("team_members_team_user_unique").on(t.teamId, t.userId)],
+);
+
+export const projectStatusEnum = pgEnum("project_status", ["active", "archived"]);
+export const milestoneStatusEnum = pgEnum("milestone_status", ["open", "done"]);
+export const taskStatusEnum = pgEnum("task_status", ["todo", "doing", "done"]);
+export const taskPriorityEnum = pgEnum("task_priority", ["low", "medium", "high"]);
+export type TaskStatus = (typeof taskStatusEnum.enumValues)[number];
+export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: projectStatusEnum("status").notNull().default("active"),
+    startDate: date("start_date"),
+    endDate: date("end_date"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("projects_team_idx").on(t.teamId)],
+);
+
+export const milestones = pgTable(
+  "milestones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    targetDate: date("target_date"),
+    status: milestoneStatusEnum("status").notNull().default("open"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("milestones_project_idx").on(t.projectId)],
+);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    milestoneId: uuid("milestone_id").references(() => milestones.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description"),
+    assigneeId: uuid("assignee_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    dueDate: date("due_date"),
+    status: taskStatusEnum("status").notNull().default("todo"),
+    priority: taskPriorityEnum("priority").notNull().default("medium"),
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("tasks_project_idx").on(t.projectId),
+    index("tasks_assignee_idx").on(t.assigneeId),
+  ],
 );
