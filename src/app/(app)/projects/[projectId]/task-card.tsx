@@ -132,7 +132,12 @@ export function TaskCard({
               保存
             </button>
           </form>
-          <form action={deleteFormAction}>
+          <form
+            action={deleteFormAction}
+            onSubmit={(e) => {
+              if (!confirm("确认删除该任务？此操作不可恢复。")) e.preventDefault();
+            }}
+          >
             <input type="hidden" name="taskId" value={task.id} />
             <input type="hidden" name="projectId" value={projectId} />
             {deleteState?.error && (
