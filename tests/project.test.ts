@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
-import { createTeam, joinTeam } from "@/lib/team";
+import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import {
   createProject,
   listTeamProjects,
@@ -112,6 +112,17 @@ describe("milestones", () => {
     const p = await createProject(owner.id, team.id, { name: "甲计划" });
     await expect(
       createMilestone(student.id, p.id, { title: "私设节点" }),
+    ).rejects.toThrow("没有权限");
+  });
+
+  it("teacher 建里程碑被拒（仅 admin）", async () => {
+    const { owner, team } = await scene();
+    const teacher = await makeUser("teacher@example.com");
+    await joinTeam(teacher.id, team.inviteCode);
+    await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
+    const p = await createProject(owner.id, team.id, { name: "甲计划" });
+    await expect(
+      createMilestone(teacher.id, p.id, { title: "越权节点" }),
     ).rejects.toThrow("没有权限");
   });
 });
