@@ -91,12 +91,23 @@ export async function updateTask(
   if (patch.assigneeId) await validateAssignee(access.project.teamId, patch.assigneeId);
   if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
 
+  // 显式白名单构造，勿用 ...patch 展开：运行时宽对象可夹带 projectId/sortOrder 等越权字段
   const [updated] = await db
     .update(tasks)
     // updatedAt 取 DB 时钟（now()）而非宿主机 new Date()：与 createdAt 的 defaultNow() 同源，保证单调性
-    .set({ ...patch, updatedAt: sql`now()` })
+    .set({
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.description !== undefined && { description: patch.description }),
+      ...(patch.assigneeId !== undefined && { assigneeId: patch.assigneeId }),
+      ...(patch.dueDate !== undefined && { dueDate: patch.dueDate }),
+      ...(patch.milestoneId !== undefined && { milestoneId: patch.milestoneId }),
+      ...(patch.status !== undefined && { status: patch.status }),
+      ...(patch.priority !== undefined && { priority: patch.priority }),
+      updatedAt: sql`now()`,
+    })
     .where(eq(tasks.id, taskId))
     .returning();
+  if (!updated) throw new AppError("任务不存在");
   return updated;
 }
 
