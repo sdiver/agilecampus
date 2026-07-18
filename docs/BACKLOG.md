@@ -19,3 +19,11 @@
 - 团队列表查询直写在 page.tsx——再有同类需求时上提 lib 层 listMyTeams
 - bcryptjs 自带类型声明，@types/bcryptjs 冗余可移除
 - SALT_ROUNDS=10 为下限，可评估升 12
+
+## 图二（骨架）简化备案
+- 无项目级成员表：团队成员即可见全部团队项目（"参与的项目"从宽）
+- 看板列内手动排序未做（sort_order 已建，拖拽仅改状态）
+- teacher 反馈/评论功能后置（设计文档原定 MVP 后）
+- 里程碑无编辑/关闭入口（仅创建与展示，状态字段已建）
+- 项目无编辑/归档入口（status 字段已建）
+- updateTask/deleteTask "任务不存在"先于权限返回，对非成员泄露 uuid 存在性（uuid 不可枚举，风险极低）
