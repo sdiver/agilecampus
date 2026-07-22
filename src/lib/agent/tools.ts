@@ -61,5 +61,85 @@ export function buildTools(actorId: string, projectId: string) {
       }),
       execute: async (filters) => listTasksFiltered(actorId, projectId, filters),
     }),
+    create_project: tool({
+      description: "拟一个新项目草案（在当前项目所属团队下）。仅产草案，需人工确认后落库。",
+      inputSchema: z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+      execute: async (input) => draftEnvelope("create_project", input),
+    }),
+    decompose_tasks: tool({
+      description: "把目标/需求拆成任务清单草案。仅产草案，需人工确认后落库。",
+      inputSchema: z.object({
+        tasks: z.array(
+          z.object({
+            title: z.string(),
+            description: z.string().optional(),
+            assigneeId: z.string().optional(),
+            dueDate: z.string().optional(),
+            milestoneId: z.string().optional(),
+            priority: z.enum(["low", "medium", "high"]).optional(),
+          }),
+        ),
+      }),
+      execute: async (input) => draftEnvelope("decompose_tasks", input),
+    }),
+    update_tasks: tool({
+      description: "拟批量任务变更草案（状态/负责人/截止日/里程碑/优先级/标题）。仅产草案，需人工确认。",
+      inputSchema: z.object({
+        updates: z.array(
+          z.object({
+            taskId: z.string(),
+            patch: z.object({
+              title: z.string().optional(),
+              status: z.enum(["todo", "doing", "done"]).optional(),
+              assigneeId: z.string().optional(),
+              dueDate: z.string().optional(),
+              milestoneId: z.string().optional(),
+              priority: z.enum(["low", "medium", "high"]).optional(),
+            }),
+          }),
+        ),
+      }),
+      // 为每个 update 填入当前 updatedAt（乐观锁读时版本），供 commit 比对
+      execute: async (input) => {
+        const rows = await listProjectTasks(actorId, projectId);
+        const versionOf = new Map(rows.map((r) => [r.id, r.updatedAt]));
+        const updates = input.updates.map((u) => ({
+          taskId: u.taskId,
+          updatedAt: versionOf.get(u.taskId)?.toISOString() ?? "",
+          patch: u.patch,
+        }));
+        return draftEnvelope("update_tasks", { updates });
+      },
+    }),
+    plan_sprint: tool({
+      description: "把选定任务排入某里程碑并批量设截止日。仅产草案，需人工确认。",
+      inputSchema: z.object({
+        milestoneId: z.string(),
+        taskIds: z.array(z.string()),
+        dueDate: z.string(),
+      }),
+      execute: async (input) => draftEnvelope("plan_sprint", input),
+    }),
   };
+}
+
+export const WRITE_TOOL_NAMES = [
+  "create_project",
+  "decompose_tasks",
+  "update_tasks",
+  "plan_sprint",
+] as const;
+
+export type WriteToolName = (typeof WRITE_TOOL_NAMES)[number];
+
+// 草案信封：写工具 execute 的统一返回形态，供 orchestrator 识别提取
+export type DraftEnvelope = { __draft: true; tool: WriteToolName; draft: unknown };
+
+function draftEnvelope(tool: WriteToolName, draft: unknown): DraftEnvelope {
+  return { __draft: true, tool, draft };
 }
