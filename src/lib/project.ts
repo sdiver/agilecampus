@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { milestones, projects } from "@/db/schema";
+import { milestones, projects, teamMembers, teams, tasks } from "@/db/schema";
 import { ForbiddenError } from "./errors";
 import { getTeamMembership, requireTeamRole } from "./team";
 
@@ -68,4 +68,52 @@ export async function listProjectMilestones(actorId: string, projectId: string) 
     .from(milestones)
     .where(eq(milestones.projectId, projectId))
     .orderBy(milestones.targetDate);
+}
+
+// 跨团队聚合：我所在全部团队的项目 + 团队名 + 任务统计
+export async function listMyProjects(actorId: string) {
+  const memberships = await db
+    .select({ teamId: teamMembers.teamId })
+    .from(teamMembers)
+    .where(eq(teamMembers.userId, actorId));
+  const teamIds = memberships.map((m) => m.teamId);
+  if (teamIds.length === 0) return [];
+
+  const rows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      status: projects.status,
+      teamId: projects.teamId,
+      teamName: teams.name,
+      createdAt: projects.createdAt,
+    })
+    .from(projects)
+    .innerJoin(teams, eq(projects.teamId, teams.id))
+    .where(inArray(projects.teamId, teamIds))
+    .orderBy(desc(projects.createdAt));
+
+  if (rows.length === 0) return [];
+
+  const stats = await db
+    .select({
+      projectId: tasks.projectId,
+      status: tasks.status,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(tasks)
+    .where(
+      inArray(
+        tasks.projectId,
+        rows.map((r) => r.id),
+      ),
+    )
+    .groupBy(tasks.projectId, tasks.status);
+
+  return rows.map((p) => {
+    const mine = stats.filter((s) => s.projectId === p.id);
+    const total = mine.reduce((n, s) => n + s.count, 0);
+    const doneCount = mine.find((s) => s.status === "done")?.count ?? 0;
+    return { ...p, taskTotal: total, doneCount };
+  });
 }
