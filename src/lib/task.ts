@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   milestones,
+  taskDependencies,
   tasks,
   users,
   type TaskPriority,
@@ -82,6 +83,7 @@ export async function updateTask(
     milestoneId?: string | null;
     status?: TaskStatus;
     priority?: TaskPriority;
+    completionNote?: string | null;
   },
 ) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
@@ -103,6 +105,7 @@ export async function updateTask(
       ...(patch.milestoneId !== undefined && { milestoneId: patch.milestoneId }),
       ...(patch.status !== undefined && { status: patch.status }),
       ...(patch.priority !== undefined && { priority: patch.priority }),
+      ...(patch.completionNote !== undefined && { completionNote: patch.completionNote }),
       updatedAt: sql`now()`,
     })
     .where(eq(tasks.id, taskId))
@@ -133,9 +136,62 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
+      completionNote: tasks.completionNote,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder);
+}
+
+// 设置 predecessor 的后置任务（先删旧再插新）。简单关联：仅防直接成环，不强制阻断执行。
+export async function setTaskSuccessors(
+  actorId: string,
+  predecessorId: string,
+  successorIds: string[],
+) {
+  const [pred] = await db.select().from(tasks).where(eq(tasks.id, predecessorId));
+  if (!pred) throw new AppError("任务不存在");
+  await requireTaskWrite(actorId, pred.projectId);
+
+  for (const sid of successorIds) {
+    if (sid === predecessorId) throw new AppError("后置任务不可构成循环");
+    const [s] = await db
+      .select({ projectId: tasks.projectId })
+      .from(tasks)
+      .where(eq(tasks.id, sid));
+    if (!s || s.projectId !== pred.projectId)
+      throw new AppError("后置任务不属于该项目");
+    const [back] = await db
+      .select({ id: taskDependencies.id })
+      .from(taskDependencies)
+      .where(
+        and(
+          eq(taskDependencies.predecessorId, sid),
+          eq(taskDependencies.successorId, predecessorId),
+        ),
+      );
+    if (back) throw new AppError("后置任务不可构成循环");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(taskDependencies).where(eq(taskDependencies.predecessorId, predecessorId));
+    if (successorIds.length > 0) {
+      await tx
+        .insert(taskDependencies)
+        .values(successorIds.map((sid) => ({ predecessorId, successorId: sid })));
+    }
+  });
+}
+
+export async function listProjectDependencies(actorId: string, projectId: string) {
+  await requireProjectAccess(actorId, projectId);
+  return db
+    .select({
+      predecessorId: taskDependencies.predecessorId,
+      successorId: taskDependencies.successorId,
+    })
+    .from(taskDependencies)
+    .innerJoin(tasks, eq(taskDependencies.predecessorId, tasks.id))
+    .where(eq(tasks.projectId, projectId));
 }
