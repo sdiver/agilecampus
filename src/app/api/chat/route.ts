@@ -28,7 +28,8 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });
     if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });
-    const msg = e instanceof Error ? e.message : "对话失败，请重试";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // 未预期错误（含 DeepSeek 超时/失败）：服务端留痕，对客户端只呈通用消息，不暴露内部细节
+    console.error("[/api/chat] runAgentTurn 失败:", e);
+    return NextResponse.json({ error: "对话失败，请重试" }, { status: 500 });
   }
 }

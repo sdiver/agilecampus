@@ -29,6 +29,8 @@ export async function runAgentTurn(params: {
     system: `${SYSTEM_PREAMBLE}\n\n${snapshot}`,
     tools,
     stopWhen: stepCountIs(5),
+    // 设计 §6.4：不自动重试——覆盖 AI SDK 默认 maxRetries=2，失败即如实呈报
+    maxRetries: 0,
     messages: [{ role: "user", content: userText }],
   });
 
