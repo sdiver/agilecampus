@@ -96,6 +96,7 @@ export const tasks = pgTable(
     }),
     title: text("title").notNull(),
     description: text("description"),
+    completionNote: text("completion_note"),
     assigneeId: uuid("assignee_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -144,4 +145,22 @@ export const messages = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("messages_conversation_idx").on(t.conversationId)],
+);
+
+export const taskDependencies = pgTable(
+  "task_dependencies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    predecessorId: uuid("predecessor_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    successorId: uuid("successor_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("task_dep_pair_unique").on(t.predecessorId, t.successorId),
+    index("task_dep_predecessor_idx").on(t.predecessorId),
+  ],
 );
