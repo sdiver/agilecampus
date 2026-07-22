@@ -1,12 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { eq, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import { conversations, messages as messagesTable } from "@/db/schema";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listTeamMembers } from "@/lib/team";
 import { listProjectTasks } from "@/lib/task";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
+import { ChatPanel } from "./chat-panel";
 
 export default async function ProjectPage({
   params,
@@ -30,6 +34,25 @@ export default async function ProjectPage({
 
   const canWrite = role === "admin" || role === "student";
   const isAdmin = role === "admin";
+
+  const [latestConv] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(eq(conversations.projectId, projectId))
+    .orderBy(desc(conversations.createdAt))
+    .limit(1);
+
+  const history = latestConv
+    ? await db
+        .select({ role: messagesTable.role, content: messagesTable.content })
+        .from(messagesTable)
+        .where(eq(messagesTable.conversationId, latestConv.id))
+        .orderBy(messagesTable.createdAt)
+    : [];
+
+  const initialMessages = history
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
   return (
     <main className="mx-auto max-w-5xl space-y-8">
@@ -68,6 +91,8 @@ export default async function ProjectPage({
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
         />
       </section>
+
+      <ChatPanel projectId={projectId} initialMessages={initialMessages} />
 
       {canWrite && (
         <NewTaskForm
