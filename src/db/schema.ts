@@ -8,6 +8,7 @@ import {
   date,
   doublePrecision,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
@@ -109,4 +110,38 @@ export const tasks = pgTable(
     index("tasks_project_idx").on(t.projectId),
     index("tasks_assignee_idx").on(t.assigneeId),
   ],
+);
+
+export const messageRoleEnum = pgEnum("message_role", ["user", "assistant", "tool"]);
+export type MessageRole = (typeof messageRoleEnum.enumValues)[number];
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdById: uuid("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("conversations_project_idx").on(t.projectId)],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: messageRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    toolCalls: jsonb("tool_calls"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("messages_conversation_idx").on(t.conversationId)],
 );
