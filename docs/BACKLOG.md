@@ -57,3 +57,27 @@
 - 跨项目总览为列表+任务统计，未含管理员整体看板泳道/甘特图（留后续「图五·管理视图」）
 - listMyProjects 对 admin/teacher/student 一视同仁（无项目级成员表，沿图二备案）
 - 后置任务多选下拉在任务多时体验一般（原生 select multiple），未做更友好的选择器
+
+## 图五（API Token + 资源占用 + CC 写入）简化备案
+- token 作用域=该用户全部权限（MVP），未做限定项目的细粒度作用域（留后续）
+- token 无过期机制，仅撤销即失效；未做自动过期/轮换
+- verifyApiToken 每次校验命中即写 lastUsedAt（每请求一次写），未做节流/批量
+- listApiTokens 含已撤销令牌供 UI 标注状态，撤销记录不清理会累积（无软删清理任务）
+- 资源名自由填写，无预定义资源池/资源实体表——同名字符串即同一资源（大小写/空格敏感）
+- 时长汇总仅计已结束占用；进行中占用不计入 byUser/byResource（避免 now 引入的不确定性）
+- endResourceUsage 权限=登记者本人 or 团队 admin；teacher/其他成员不可结束他人占用
+- /api/agent/* 无速率限制，防滥用（限流）后置
+- resource-usage 端点时间用 z.coerce.date()，时区取决于调用方传入的 ISO 串；网页表单用 datetime-local（本地墙钟）
+- CC 仅「写入」（加任务/填完成/登记资源），未做「读」端点（查进度/列任务）——陛下所命
+- CC skill 需用户手动配置 AGILECAMPUS_TOKEN/AGILECAMPUS_URL 环境变量；skill 未自动发现 project/team 的 uuid（需用户提供或从地址栏取）
+- 尚未攻取：C 实验时间线视图、E 飞书接入（须陛下先备飞书 AppID/Secret）
+
+## 图六·C（实验时间线甘特）简化备案
+- 任务加 startDate（可空 date）；时间线取 [startDate?, dueDate?]：仅一端有值时以该端为准，单日任务补 1 天宽度
+- 甘特纯 server 端渲染 + CSS 百分比定位，无缩放/拖拽/横向滚动（长跨度项目条会很细）——只读查勘视图
+- 时间范围强制纳入「今日」，全部任务在远期时图会被今日拉长（现实数据近期，可接受）
+- 逾期判定=status≠done 且 dueDate<今日；未设 dueDate 的任务不判逾期
+- 里程碑分组按 listProjectMilestones 顺序 + 末尾「无里程碑」；未排期任务单列徽章展示，不入甘特
+- 时间线为项目级；跨项目/团队总甘特未做（留后续管理视图）
+- startDate 未校验 ≤ dueDate（前端可倒填）；甘特对 start>end 做防御性纠正，但 lib 未强约束
+- 时间线视图只读，未做在甘特上直接拖拽改期

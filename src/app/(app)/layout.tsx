@@ -12,15 +12,35 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-3">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/85 px-6 py-3 backdrop-blur">
         <div className="flex items-center gap-6">
-          <span className="font-display text-lg font-semibold text-ink">AgileCampus</span>
-          <nav className="flex items-center gap-4">
-            <Link href="/projects" className="text-sm text-ink-soft hover:text-primary">
+          <Link href="/projects" className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="grid h-7 w-7 place-items-center rounded-md bg-primary font-display text-sm font-bold text-white shadow-sm"
+            >
+              A
+            </span>
+            <span className="font-display text-lg font-semibold text-ink">AgileCampus</span>
+          </Link>
+          <nav className="flex items-center gap-1">
+            <Link
+              href="/projects"
+              className="rounded-field px-2.5 py-1.5 text-sm text-ink-soft transition-colors hover:bg-primary-soft hover:text-primary"
+            >
               所有项目
             </Link>
-            <Link href="/teams" className="text-sm text-ink-soft hover:text-primary">
+            <Link
+              href="/teams"
+              className="rounded-field px-2.5 py-1.5 text-sm text-ink-soft transition-colors hover:bg-primary-soft hover:text-primary"
+            >
               我的团队
+            </Link>
+            <Link
+              href="/settings/tokens"
+              className="rounded-field px-2.5 py-1.5 text-sm text-ink-soft transition-colors hover:bg-primary-soft hover:text-primary"
+            >
+              设置
             </Link>
           </nav>
         </div>
@@ -31,11 +51,11 @@ export default async function AppLayout({
           }}
           className="flex items-center gap-3"
         >
-          <span className="text-sm text-ink-soft">{session.user.name}</span>
+          <span className="hidden text-sm text-ink-soft sm:inline">{session.user.name}</span>
           <button className="ac-btn-ghost">退出</button>
         </form>
       </header>
-      <div className="p-6">{children}</div>
+      <div className="mx-auto max-w-5xl p-6">{children}</div>
     </div>
   );
 }

@@ -6,38 +6,38 @@
    ============================================================ */
 
 @theme {
-  /* 中性 · 净暖白纸感 */
-  --color-canvas: #f5f4f0;
+  /* 中性 · 净暖白纸感（略提对比，更清透） */
+  --color-canvas: #f3f1ea;
   --color-surface: #ffffff;
-  --color-sunken: #f7f6f1;
-  --color-ink: #1b1a16;
-  --color-ink-soft: #57524a;
-  --color-ink-faint: #948e83;
-  --color-line: #eae7df;
-  --color-line-strong: #dcd7cb;
+  --color-sunken: #f0ede4;
+  --color-ink: #1a1913;
+  --color-ink-soft: #514c43;
+  --color-ink-faint: #928b7e;
+  --color-line: #e8e3d8;
+  --color-line-strong: #d8d1c2;
 
-  /* 主色 · 雅靛蓝 */
-  --color-primary: #38527f;
-  --color-primary-hover: #2c4167;
-  --color-primary-soft: #edf1f9;
-  --color-primary-ring: #c6d3ec;
+  /* 主色 · 藏青（更沉稳有分量） */
+  --color-primary: #294a78;
+  --color-primary-hover: #1e3a60;
+  --color-primary-soft: #e8eef8;
+  --color-primary-ring: #bcccea;
 
-  /* 点缀 · 琥珀 */
-  --color-accent: #c17d38;
-  --color-accent-soft: #f6ecde;
+  /* 点缀 · 赭陶（更暖润） */
+  --color-accent: #bf6a34;
+  --color-accent-soft: #f6e7d5;
 
   /* 语义 · 看板列 */
-  --color-todo: #78859a;
-  --color-doing: #3f5b93;
-  --color-done: #4a7d5f;
+  --color-todo: #7c8698;
+  --color-doing: #35548c;
+  --color-done: #3f7a58;
 
   /* 语义 · 优先级 */
-  --color-high: #b64d33;
-  --color-high-soft: #f7e7e1;
-  --color-medium: #ac7a2e;
-  --color-medium-soft: #f6ecda;
-  --color-low: #737d8e;
-  --color-low-soft: #eeeff2;
+  --color-high: #b6482f;
+  --color-high-soft: #f7e4dd;
+  --color-medium: #a9722a;
+  --color-medium-soft: #f5e9d2;
+  --color-low: #6f7987;
+  --color-low-soft: #ecedf0;
 
   /* 字体 */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
