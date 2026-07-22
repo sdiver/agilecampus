@@ -32,6 +32,7 @@ Next.js (App Router) · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 
 - `/teams/[teamId]/projects` 项目列表（admin 创建）
 - `/projects/[projectId]` 项目详情：里程碑 + 看板拖拽 + 任务管理 + 项目助手对话
 - `/api/chat` 项目助手对话（Agent 读工具，POST）
+- `/api/chat/commit` Agent 写操作草案落库（两段式确认，POST）
 
 ## 文档
 
@@ -40,4 +41,6 @@ Next.js (App Router) · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 
 - 作战图二（骨架）：docs/superpowers/plans/2026-07-03-agilecampus-plan2-skeleton.md
 - 图三设计（灵魂·上）：docs/superpowers/specs/2026-07-22-agilecampus-plan3-agent-design.md
 - 作战图三上（对话地基）：docs/superpowers/plans/2026-07-22-agilecampus-plan3a-agent-foundation.md
+- 图三设计（灵魂·下）：docs/superpowers/specs/2026-07-22-agilecampus-plan3b-agent-write-design.md
+- 作战图三下（四写兵器）：docs/superpowers/plans/2026-07-22-agilecampus-plan3b-agent-write-tools.md
 - 技术债备案：docs/BACKLOG.md
