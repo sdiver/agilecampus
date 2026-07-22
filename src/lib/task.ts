@@ -132,6 +132,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       milestoneId: tasks.milestoneId,
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
+      updatedAt: tasks.updatedAt,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
