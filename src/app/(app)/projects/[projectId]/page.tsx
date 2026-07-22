@@ -55,13 +55,13 @@ export default async function ProjectPage({
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8">
+    <main className="mx-auto max-w-5xl space-y-8 py-8">
       <header>
-        <h1 className="text-2xl font-bold">{project.name}</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">{project.name}</h1>
         {project.description && (
-          <p className="mt-1 text-sm text-gray-600">{project.description}</p>
+          <p className="mt-1 text-sm text-ink-soft">{project.description}</p>
         )}
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-ink-faint">
           {project.startDate ?? "?"} ~ {project.endDate ?? "?"} · {project.status}
         </p>
       </header>
@@ -73,7 +73,7 @@ export default async function ProjectPage({
       />
 
       <section className="space-y-3">
-        <h2 className="font-medium">看板</h2>
+        <h2 className="font-medium text-ink">看板</h2>
         <Board
           projectId={projectId}
           tasks={projectTasks.map((t) => ({

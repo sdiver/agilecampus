@@ -22,28 +22,28 @@ export default async function TeamsPage() {
     .where(eq(teamMembers.userId, session.user.id));
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8">
-      <h1 className="text-2xl font-bold">我的团队</h1>
+    <main className="mx-auto max-w-2xl space-y-8 py-8">
+      <h1 className="font-display text-2xl font-semibold text-ink">我的团队</h1>
       <ul className="space-y-2">
         {myTeams.map((t) => (
-          <li key={t.id} className="flex items-center justify-between rounded border p-3">
+          <li key={t.id} className="ac-card flex items-center justify-between p-4">
             <div>
-              <span className="font-medium">{t.name}</span>
-              <span className="ml-2 text-xs text-gray-500">角色：{t.role}</span>
-              <span className="ml-2 text-xs text-gray-400">邀请码：{t.inviteCode}</span>
+              <span className="font-medium text-ink">{t.name}</span>
+              <span className="ml-2 text-xs text-ink-soft">角色：{t.role}</span>
+              <span className="ml-2 text-xs text-ink-faint">邀请码：{t.inviteCode}</span>
             </div>
             <div className="flex gap-3">
-              <Link href={`/teams/${t.id}/projects`} className="text-sm underline">
+              <Link href={`/teams/${t.id}/projects`} className="text-sm text-primary hover:underline">
                 项目
               </Link>
-              <Link href={`/teams/${t.id}/members`} className="text-sm underline">
+              <Link href={`/teams/${t.id}/members`} className="text-sm text-primary hover:underline">
                 成员管理
               </Link>
             </div>
           </li>
         ))}
         {myTeams.length === 0 && (
-          <li className="text-sm text-gray-500">尚未加入任何团队，创建一个或凭邀请码加入。</li>
+          <li className="text-sm text-ink-soft">尚未加入任何团队，创建一个或凭邀请码加入。</li>
         )}
       </ul>
       <TeamForms />

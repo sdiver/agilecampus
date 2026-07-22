@@ -11,16 +11,17 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <span className="font-bold">AgileCampus</span>
+      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-3">
+        <span className="font-display text-lg font-semibold text-ink">AgileCampus</span>
         <form
           action={async () => {
             "use server";
             await signOut({ redirectTo: "/login" });
           }}
+          className="flex items-center gap-3"
         >
-          <span className="mr-3 text-sm text-gray-500">{session.user.name}</span>
-          <button className="text-sm underline">退出</button>
+          <span className="text-sm text-ink-soft">{session.user.name}</span>
+          <button className="ac-btn-ghost">退出</button>
         </form>
       </header>
       <div className="p-6">{children}</div>

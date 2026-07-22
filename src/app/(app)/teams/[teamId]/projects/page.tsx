@@ -23,27 +23,27 @@ export default async function ProjectsPage({
   const isAdmin = me.role === "admin";
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8">
-      <h1 className="text-2xl font-bold">项目</h1>
+    <main className="mx-auto max-w-2xl space-y-8 py-8">
+      <h1 className="font-display text-2xl font-semibold text-ink">项目</h1>
       <ul className="space-y-2">
         {projects.map((p) => (
-          <li key={p.id} className="rounded border p-3">
-            <Link href={`/projects/${p.id}`} className="font-medium underline">
+          <li key={p.id} className="ac-card p-4">
+            <Link href={`/projects/${p.id}`} className="font-medium text-primary hover:underline">
               {p.name}
             </Link>
-            <span className="ml-2 text-xs text-gray-500">{p.status}</span>
+            <span className="ml-2 text-xs text-ink-soft">{p.status}</span>
             {(p.startDate || p.endDate) && (
-              <span className="ml-2 text-xs text-gray-400">
+              <span className="ml-2 text-xs text-ink-faint">
                 {p.startDate ?? "?"} ~ {p.endDate ?? "?"}
               </span>
             )}
             {p.description && (
-              <p className="mt-1 text-sm text-gray-600">{p.description}</p>
+              <p className="mt-1 text-sm text-ink-soft">{p.description}</p>
             )}
           </li>
         ))}
         {projects.length === 0 && (
-          <li className="text-sm text-gray-500">
+          <li className="text-sm text-ink-soft">
             暂无项目{isAdmin ? "，在下方创建第一个。" : "。"}
           </li>
         )}

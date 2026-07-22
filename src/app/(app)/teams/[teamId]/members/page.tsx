@@ -35,28 +35,28 @@ export default async function MembersPage({
   const isAdmin = me.role === "admin";
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">{team.name} · 成员</h1>
+    <main className="mx-auto max-w-2xl space-y-6 py-8">
+      <h1 className="font-display text-2xl font-semibold text-ink">{team.name} · 成员</h1>
       <ul className="space-y-2">
         {members.map((m) => (
-          <li key={m.userId} className="flex items-center justify-between rounded border p-3">
-            <span>
-              {m.name} <span className="text-xs text-gray-500">{m.email}</span>
+          <li key={m.userId} className="ac-card flex items-center justify-between p-4">
+            <span className="text-ink">
+              {m.name} <span className="text-xs text-ink-soft">{m.email}</span>
             </span>
             {isAdmin && m.userId !== session.user.id ? (
               <form action={updateRoleAction} className="flex items-center gap-2">
                 <input type="hidden" name="teamId" value={teamId} />
                 <input type="hidden" name="userId" value={m.userId} />
                 {/* key=role：角色变更后强制重挂载，使 defaultValue 重新采纳（非受控 select 不更新已挂载节点） */}
-                <select key={m.role} name="role" defaultValue={m.role} className="rounded border p-1 text-sm">
+                <select key={m.role} name="role" defaultValue={m.role} className="ac-field w-auto py-1 text-sm">
                   <option value="admin">admin</option>
                   <option value="teacher">teacher</option>
                   <option value="student">student</option>
                 </select>
-                <button className="rounded bg-black px-2 py-1 text-xs text-white">保存</button>
+                <button className="ac-btn px-2 py-1 text-xs">保存</button>
               </form>
             ) : (
-              <span className="text-sm text-gray-500">{m.role}</span>
+              <span className="text-sm text-ink-soft">{m.role}</span>
             )}
           </li>
         ))}

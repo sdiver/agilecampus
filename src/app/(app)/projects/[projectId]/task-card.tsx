@@ -11,6 +11,12 @@ import type { BoardTask } from "./board";
 
 export type Option = { id: string; name: string };
 
+const PRIORITY_BADGE: Record<string, string> = {
+  high: "bg-high-soft text-high",
+  medium: "bg-medium-soft text-medium",
+  low: "bg-low-soft text-low",
+};
+
 export function TaskCard({
   task,
   projectId,
@@ -46,18 +52,20 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`rounded border bg-white p-2 text-sm ${isDragging ? "opacity-50" : ""}`}
+      className={`ac-card p-3 text-sm transition hover:shadow-md ${isDragging ? "opacity-50" : ""}`}
     >
       <div
         {...listeners}
         {...attributes}
         className={canWrite && !editing ? "cursor-grab" : ""}
       >
-        <p className="font-medium">{task.title}</p>
-        <p className="mt-1 text-xs text-gray-500">
-          {task.assigneeName ?? "未分配"}
-          {task.dueDate && ` · ${task.dueDate}`}
-          {` · ${task.priority}`}
+        <p className="font-medium text-ink">{task.title}</p>
+        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
+          <span>{task.assigneeName ?? "未分配"}</span>
+          {task.dueDate && <span>· {task.dueDate}</span>}
+          <span className={`ac-badge ${PRIORITY_BADGE[task.priority] ?? "bg-low-soft text-low"}`}>
+            {task.priority}
+          </span>
         </p>
       </div>
 
@@ -65,26 +73,26 @@ export function TaskCard({
         <button
           type="button"
           onClick={() => setEditing((v) => !v)}
-          className="mt-1 text-xs text-gray-400 underline"
+          className="mt-2 text-xs text-ink-faint hover:text-primary hover:underline"
         >
           {editing ? "收起" : "编辑"}
         </button>
       )}
 
       {editing && (
-        <div className="mt-2 space-y-2 border-t pt-2">
+        <div className="mt-2 space-y-2 border-t border-line pt-2">
           <form action={updateFormAction} className="space-y-1">
             <input type="hidden" name="taskId" value={task.id} />
             <input type="hidden" name="projectId" value={projectId} />
             <input
               name="title"
               defaultValue={task.title}
-              className="w-full rounded border p-1 text-xs"
+              className="ac-field text-xs"
             />
             <select
               name="assigneeId"
               defaultValue={task.assigneeId ?? ""}
-              className="w-full rounded border p-1 text-xs"
+              className="ac-field text-xs"
             >
               <option value="">未分配</option>
               {members.map((m) => (
@@ -96,7 +104,7 @@ export function TaskCard({
             <select
               name="milestoneId"
               defaultValue={task.milestoneId ?? ""}
-              className="w-full rounded border p-1 text-xs"
+              className="ac-field text-xs"
             >
               <option value="">无里程碑</option>
               {milestones.map((m) => (
@@ -109,7 +117,7 @@ export function TaskCard({
               <select
                 name="priority"
                 defaultValue={task.priority}
-                className="rounded border p-1 text-xs"
+                className="ac-field w-auto text-xs"
               >
                 <option value="low">低</option>
                 <option value="medium">中</option>
@@ -119,16 +127,13 @@ export function TaskCard({
                 type="date"
                 name="dueDate"
                 defaultValue={task.dueDate ?? ""}
-                className="rounded border p-1 text-xs"
+                className="ac-field w-auto text-xs"
               />
             </div>
             {updateState?.error && (
-              <p className="text-xs text-red-600">{updateState.error}</p>
+              <p className="text-xs text-high">{updateState.error}</p>
             )}
-            <button
-              disabled={updating}
-              className="rounded bg-black px-2 py-1 text-xs text-white disabled:opacity-50"
-            >
+            <button disabled={updating} className="ac-btn px-2 py-1 text-xs">
               保存
             </button>
           </form>
@@ -141,11 +146,11 @@ export function TaskCard({
             <input type="hidden" name="taskId" value={task.id} />
             <input type="hidden" name="projectId" value={projectId} />
             {deleteState?.error && (
-              <p className="text-xs text-red-600">{deleteState.error}</p>
+              <p className="text-xs text-high">{deleteState.error}</p>
             )}
             <button
               disabled={deleting}
-              className="text-xs text-red-600 underline disabled:opacity-50"
+              className="text-xs text-high underline disabled:opacity-50"
             >
               删除任务
             </button>

@@ -49,14 +49,14 @@ export function ChatPanel({
   }
 
   return (
-    <section className="space-y-3 rounded border p-4">
-      <h2 className="font-medium">项目助手</h2>
+    <section className="ac-card space-y-3 p-4">
+      <h2 className="font-medium text-ink">项目助手</h2>
       <div className="max-h-96 space-y-2 overflow-y-auto">
         {messages.map((m, i) => (
           <div key={i}>
-            <div className={`rounded p-2 text-sm ${m.role === "user" ? "bg-gray-100" : "bg-blue-50"}`}>
-              <span className="mr-2 text-xs text-gray-400">{m.role === "user" ? "我" : "助手"}</span>
-              <span className="whitespace-pre-wrap">{m.content}</span>
+            <div className={`rounded-lg p-2.5 text-sm ${m.role === "user" ? "bg-sunken" : "bg-primary-soft"}`}>
+              <span className="mr-2 text-xs text-ink-faint">{m.role === "user" ? "我" : "助手"}</span>
+              <span className="whitespace-pre-wrap text-ink">{m.content}</span>
             </div>
             {m.drafts && m.drafts.length > 0 && (
               <DraftCards projectId={projectId} drafts={m.drafts} members={members} milestones={milestones} />
@@ -64,20 +64,20 @@ export function ChatPanel({
           </div>
         ))}
         {messages.length === 0 && (
-          <p className="text-sm text-gray-500">向助手提问，如「当前进度如何？」或「把调研拆成任务」</p>
+          <p className="text-sm text-ink-soft">向助手提问，如「当前进度如何？」或「把调研拆成任务」</p>
         )}
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-high">{error}</p>}
       <div className="flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="问点什么…"
-          className="flex-1 rounded border p-2 text-sm"
+          className="ac-field flex-1 text-sm"
           disabled={pending}
         />
-        <button onClick={send} disabled={pending} className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-50">
+        <button onClick={send} disabled={pending} className="ac-btn px-3 py-2 text-sm">
           {pending ? "思考中…" : "发送"}
         </button>
       </div>

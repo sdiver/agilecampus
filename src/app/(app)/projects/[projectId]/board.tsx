@@ -24,9 +24,9 @@ export type BoardTask = {
 };
 
 const COLUMNS = [
-  { key: "todo", label: "待办" },
-  { key: "doing", label: "进行中" },
-  { key: "done", label: "已完成" },
+  { key: "todo", label: "待办", text: "text-todo" },
+  { key: "doing", label: "进行中", text: "text-doing" },
+  { key: "done", label: "已完成", text: "text-done" },
 ] as const;
 
 type ColumnKey = (typeof COLUMNS)[number]["key"];
@@ -34,6 +34,7 @@ type ColumnKey = (typeof COLUMNS)[number]["key"];
 function Column({
   columnKey,
   label,
+  text,
   tasks,
   projectId,
   canWrite,
@@ -42,6 +43,7 @@ function Column({
 }: {
   columnKey: ColumnKey;
   label: string;
+  text: string;
   tasks: BoardTask[];
   projectId: string;
   canWrite: boolean;
@@ -53,12 +55,13 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-40 space-y-2 rounded border p-3 ${
-        isOver ? "bg-blue-50" : "bg-gray-50"
+      className={`min-h-40 space-y-2 rounded-xl border border-line p-3 transition-colors ${
+        isOver ? "bg-primary-soft" : "bg-sunken"
       }`}
     >
-      <h3 className="text-sm font-medium text-gray-600">
-        {label} <span className="text-xs text-gray-400">{tasks.length}</span>
+      <h3 className={`flex items-center gap-2 text-sm font-semibold ${text}`}>
+        {label}
+        <span className="ac-badge bg-surface text-ink-soft">{tasks.length}</span>
       </h3>
       {tasks.map((t) => (
         <TaskCard
@@ -116,13 +119,14 @@ export function Board({
 
   return (
     <DndContext id={`board-${projectId}`} sensors={sensors} onDragEnd={handleDragEnd}>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-high">{error}</p>}
       <div className="grid grid-cols-3 gap-4">
         {COLUMNS.map((col) => (
           <Column
             key={col.key}
             columnKey={col.key}
             label={col.label}
+            text={col.text}
             tasks={optimisticTasks.filter((t) => t.status === col.key)}
             projectId={projectId}
             canWrite={canWrite}

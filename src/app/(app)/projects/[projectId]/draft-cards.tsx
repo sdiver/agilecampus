@@ -34,16 +34,16 @@ function CardShell({
 
   if (state === "done")
     return (
-      <div className="rounded border border-green-300 bg-green-50 p-2 text-xs text-green-700">
+      <div className="ac-card p-2 text-xs text-done">
         {title}：已落库 ✓
       </div>
     );
 
   return (
-    <div className="space-y-2 rounded border bg-amber-50 p-2 text-sm">
-      <p className="text-xs font-medium text-amber-700">待确认：{title}</p>
+    <div className="ac-card space-y-2 border-accent/30 bg-accent-soft p-2 text-sm">
+      <p className="text-xs font-medium text-accent">待确认：{title}</p>
       {children}
-      {err && <p className="text-xs text-red-600">{err}</p>}
+      {err && <p className="text-xs text-high">{err}</p>}
       <button
         disabled={state === "pending"}
         onClick={async () => {
@@ -58,7 +58,7 @@ function CardShell({
             router.refresh();
           }
         }}
-        className="rounded bg-black px-2 py-1 text-xs text-white disabled:opacity-50"
+        className="ac-btn px-2 py-1 text-xs"
       >
         {state === "pending" ? "落库中…" : "确认落库"}
       </button>
@@ -107,18 +107,18 @@ function DraftCard({
           value={d.name ?? ""}
           onChange={(e) => setData({ ...d, name: e.target.value })}
           placeholder="项目名称"
-          className="w-full rounded border p-1 text-xs"
+          className="ac-field text-xs"
         />
         <textarea
           value={d.description ?? ""}
           onChange={(e) => setData({ ...d, description: e.target.value })}
           placeholder="描述"
-          className="w-full rounded border p-1 text-xs"
+          className="ac-field text-xs"
           rows={2}
         />
         <div className="flex gap-1">
-          <input type="date" value={d.startDate ?? ""} onChange={(e) => setData({ ...d, startDate: e.target.value })} className="rounded border p-1 text-xs" />
-          <input type="date" value={d.endDate ?? ""} onChange={(e) => setData({ ...d, endDate: e.target.value })} className="rounded border p-1 text-xs" />
+          <input type="date" value={d.startDate ?? ""} onChange={(e) => setData({ ...d, startDate: e.target.value })} className="ac-field w-auto text-xs" />
+          <input type="date" value={d.endDate ?? ""} onChange={(e) => setData({ ...d, endDate: e.target.value })} className="ac-field w-auto text-xs" />
         </div>
       </CardShell>
     );
@@ -133,9 +133,9 @@ function DraftCard({
     return (
       <CardShell title={`拆解任务（${d.tasks.length}）`} onConfirm={() => commit(projectId, "decompose_tasks", d)}>
         {d.tasks.map((t, idx) => (
-          <div key={idx} className="flex flex-wrap gap-1 border-b pb-1">
-            <input value={t.title} onChange={(e) => setTask(idx, { title: e.target.value })} className="flex-1 rounded border p-1 text-xs" />
-            <select value={t.assigneeId ?? ""} onChange={(e) => setTask(idx, { assigneeId: e.target.value || undefined })} className="rounded border p-1 text-xs">
+          <div key={idx} className="flex flex-wrap gap-1 border-b border-line pb-1">
+            <input value={t.title} onChange={(e) => setTask(idx, { title: e.target.value })} className="ac-field flex-1 text-xs" />
+            <select value={t.assigneeId ?? ""} onChange={(e) => setTask(idx, { assigneeId: e.target.value || undefined })} className="ac-field w-auto text-xs">
               <option value="">未分配</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -143,13 +143,13 @@ function DraftCard({
                 </option>
               ))}
             </select>
-            <select value={t.priority ?? "medium"} onChange={(e) => setTask(idx, { priority: e.target.value })} className="rounded border p-1 text-xs">
+            <select value={t.priority ?? "medium"} onChange={(e) => setTask(idx, { priority: e.target.value })} className="ac-field w-auto text-xs">
               <option value="low">低</option>
               <option value="medium">中</option>
               <option value="high">高</option>
             </select>
-            <input type="date" value={t.dueDate ?? ""} onChange={(e) => setTask(idx, { dueDate: e.target.value || undefined })} className="rounded border p-1 text-xs" />
-            <button type="button" onClick={() => setData({ ...d, tasks: d.tasks.filter((_, i) => i !== idx) })} className="text-xs text-red-600">
+            <input type="date" value={t.dueDate ?? ""} onChange={(e) => setTask(idx, { dueDate: e.target.value || undefined })} className="ac-field w-auto text-xs" />
+            <button type="button" onClick={() => setData({ ...d, tasks: d.tasks.filter((_, i) => i !== idx) })} className="text-xs text-high hover:underline">
               删
             </button>
           </div>
@@ -163,9 +163,9 @@ function DraftCard({
     return (
       <CardShell title={`批量变更（${d.updates.length}）`} onConfirm={() => commit(projectId, "update_tasks", d)}>
         {d.updates.map((u, idx) => (
-          <div key={idx} className="border-b pb-1 text-xs">
-            <span className="text-gray-500">任务 {u.taskId.slice(0, 8)}…：</span>
-            <span>{JSON.stringify(u.patch)}</span>
+          <div key={idx} className="border-b border-line pb-1 text-xs">
+            <span className="text-ink-soft">任务 {u.taskId.slice(0, 8)}…：</span>
+            <span className="text-ink">{JSON.stringify(u.patch)}</span>
           </div>
         ))}
       </CardShell>
@@ -176,16 +176,16 @@ function DraftCard({
     const d = data as { milestoneId: string; taskIds: string[]; dueDate: string };
     return (
       <CardShell title={`排期（${d.taskIds.length} 任务）`} onConfirm={() => commit(projectId, "plan_sprint", d)}>
-        <div className="flex flex-wrap gap-1 text-xs">
-          <select value={d.milestoneId} onChange={(e) => setData({ ...d, milestoneId: e.target.value })} className="rounded border p-1">
+        <div className="flex flex-wrap items-center gap-1 text-xs">
+          <select value={d.milestoneId} onChange={(e) => setData({ ...d, milestoneId: e.target.value })} className="ac-field w-auto text-xs">
             {milestones.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
               </option>
             ))}
           </select>
-          <input type="date" value={d.dueDate} onChange={(e) => setData({ ...d, dueDate: e.target.value })} className="rounded border p-1" />
-          <span className="text-gray-500">{d.taskIds.length} 个任务</span>
+          <input type="date" value={d.dueDate} onChange={(e) => setData({ ...d, dueDate: e.target.value })} className="ac-field w-auto text-xs" />
+          <span className="text-ink-soft">{d.taskIds.length} 个任务</span>
         </div>
       </CardShell>
     );
