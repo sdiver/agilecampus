@@ -1,5 +1,5 @@
 import { generateText, stepCountIs, type LanguageModel } from "ai";
-import { buildTools } from "./tools";
+import { buildTools, type DraftEnvelope } from "./tools";
 import { buildProjectSnapshot } from "./snapshot";
 import {
   getOrCreateConversation,
@@ -43,7 +43,17 @@ export async function runAgentTurn(params: {
     })),
   );
 
+  // 写工具草案：从各步 toolResults 中提取带 __draft 标记的信封
+  const drafts: DraftEnvelope[] = result.steps.flatMap((step) =>
+    step.toolResults
+      .map((tr) => tr.output as unknown)
+      .filter(
+        (o): o is DraftEnvelope =>
+          typeof o === "object" && o !== null && (o as { __draft?: unknown }).__draft === true,
+      ),
+  );
+
   await persistTurn(conversation.id, userText, result.text, toolTrace);
 
-  return { conversationId: conversation.id, text: result.text, toolTrace };
+  return { conversationId: conversation.id, text: result.text, toolTrace, drafts };
 }
