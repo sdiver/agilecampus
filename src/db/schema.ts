@@ -100,6 +100,7 @@ export const tasks = pgTable(
     assigneeId: uuid("assignee_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    startDate: date("start_date"),
     dueDate: date("due_date"),
     status: taskStatusEnum("status").notNull().default("todo"),
     priority: taskPriorityEnum("priority").notNull().default("medium"),
@@ -162,5 +163,47 @@ export const taskDependencies = pgTable(
   (t) => [
     uniqueIndex("task_dep_pair_unique").on(t.predecessorId, t.successorId),
     index("task_dep_predecessor_idx").on(t.predecessorId),
+  ],
+);
+
+// Personal API Token：CC 等浏览器外调用的认证凭据。
+// 明文只生成时返回一次，库中仅存 sha256 hash（高熵 token 无需 bcrypt，且 hash 可建唯一索引供 O(1) 查验）。
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (t) => [index("api_tokens_user_idx").on(t.userId)],
+);
+
+// 资源占用登记：团队共享资源（服务器/算力等）的占用记录，纯登记无审批。
+// endTime 可空=占用中；时长 = endTime - startTime（结束后计算）。
+export const resourceUsages = pgTable(
+  "resource_usages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    resourceName: text("resource_name").notNull(),
+    purpose: text("purpose"),
+    startTime: timestamp("start_time").notNull(),
+    endTime: timestamp("end_time"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("resource_usages_team_idx").on(t.teamId),
+    index("resource_usages_user_idx").on(t.userId),
   ],
 );
