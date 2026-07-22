@@ -10,6 +10,7 @@ import {
 import type { BoardTask } from "./board";
 
 export type Option = { id: string; name: string };
+type TaskOption = { id: string; title: string };
 
 const PRIORITY_BADGE: Record<string, string> = {
   high: "bg-high-soft text-high",
@@ -23,12 +24,16 @@ export function TaskCard({
   canWrite,
   members,
   milestones,
+  allTasks,
+  dependencies,
 }: {
   task: BoardTask;
   projectId: string;
   canWrite: boolean;
   members: Option[];
   milestones: Option[];
+  allTasks: TaskOption[];
+  dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const [editing, setEditing] = useState(false);
   const [updateState, updateFormAction, updating] = useActionState<FormState, FormData>(
@@ -43,6 +48,10 @@ export function TaskCard({
     id: task.id,
     disabled: !canWrite || editing,
   });
+  const successorTitles = dependencies
+    .filter((d) => d.predecessorId === task.id)
+    .map((d) => allTasks.find((t) => t.id === d.successorId)?.title)
+    .filter(Boolean);
 
   return (
     <div
@@ -67,6 +76,17 @@ export function TaskCard({
             {task.priority}
           </span>
         </p>
+        {task.description && (
+          <p className="mt-1 text-xs text-ink-soft line-clamp-2">{task.description}</p>
+        )}
+        {task.status === "done" && task.completionNote && (
+          <p className="mt-1 rounded bg-done/10 px-2 py-1 text-xs text-done">
+            完成情况：{task.completionNote}
+          </p>
+        )}
+        {successorTitles.length > 0 && (
+          <p className="mt-1 text-xs text-ink-faint">后置：{successorTitles.join("、")}</p>
+        )}
       </div>
 
       {canWrite && (
@@ -89,6 +109,38 @@ export function TaskCard({
               defaultValue={task.title}
               className="ac-field text-xs"
             />
+            <textarea
+              name="description"
+              defaultValue={task.description ?? ""}
+              rows={2}
+              className="ac-field text-xs"
+              placeholder="任务描述"
+            />
+            <textarea
+              name="completionNote"
+              defaultValue={task.completionNote ?? ""}
+              rows={2}
+              className="ac-field text-xs"
+              placeholder="完成情况（完成时填写）"
+            />
+            <label className="text-xs text-ink-faint">后置任务（可多选）</label>
+            <select
+              multiple
+              name="successorIds"
+              defaultValue={dependencies
+                .filter((d) => d.predecessorId === task.id)
+                .map((d) => d.successorId)}
+              className="ac-field text-xs"
+              size={Math.min(4, Math.max(2, allTasks.length - 1))}
+            >
+              {allTasks
+                .filter((t) => t.id !== task.id)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+            </select>
             <select
               name="assigneeId"
               defaultValue={task.assigneeId ?? ""}

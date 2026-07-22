@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { conversations, messages as messagesTable } from "@/db/schema";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listTeamMembers } from "@/lib/team";
-import { listProjectTasks } from "@/lib/task";
+import { listProjectTasks, listProjectDependencies } from "@/lib/task";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
@@ -26,10 +26,11 @@ export default async function ProjectPage({
   if (!access) notFound();
   const { project, role } = access;
 
-  const [projectMilestones, projectTasks, members] = await Promise.all([
+  const [projectMilestones, projectTasks, members, dependencies] = await Promise.all([
     listProjectMilestones(session.user.id, projectId),
     listProjectTasks(session.user.id, projectId),
     listTeamMembers(project.teamId),
+    listProjectDependencies(session.user.id, projectId),
   ]);
 
   const canWrite = role === "admin" || role === "student";
@@ -79,6 +80,8 @@ export default async function ProjectPage({
           tasks={projectTasks.map((t) => ({
             id: t.id,
             title: t.title,
+            description: t.description,
+            completionNote: t.completionNote,
             status: t.status,
             priority: t.priority,
             dueDate: t.dueDate,
@@ -89,6 +92,8 @@ export default async function ProjectPage({
           canWrite={canWrite}
           members={members}
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
+          allTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
+          dependencies={dependencies}
         />
       </section>
 

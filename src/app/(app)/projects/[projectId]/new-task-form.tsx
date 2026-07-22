@@ -22,6 +22,7 @@ export function NewTaskForm({
       <h2 className="font-medium text-ink">新建任务</h2>
       <input type="hidden" name="projectId" value={projectId} />
       <input name="title" placeholder="任务标题" className="ac-field" />
+      <textarea name="description" placeholder="任务描述（可选）" rows={2} className="ac-field" />
       <div className="flex flex-wrap gap-2">
         <select name="assigneeId" defaultValue="" className="ac-field w-auto text-sm">
           <option value="">未分配</option>

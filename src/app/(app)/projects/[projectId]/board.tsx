@@ -15,6 +15,8 @@ import { TaskCard, type Option } from "./task-card";
 export type BoardTask = {
   id: string;
   title: string;
+  description: string | null;
+  completionNote: string | null;
   status: "todo" | "doing" | "done";
   priority: string;
   dueDate: string | null;
@@ -40,6 +42,8 @@ function Column({
   canWrite,
   members,
   milestones,
+  allTasks,
+  dependencies,
 }: {
   columnKey: ColumnKey;
   label: string;
@@ -49,6 +53,8 @@ function Column({
   canWrite: boolean;
   members: Option[];
   milestones: Option[];
+  allTasks: { id: string; title: string }[];
+  dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: columnKey });
 
@@ -71,6 +77,8 @@ function Column({
           canWrite={canWrite}
           members={members}
           milestones={milestones}
+          allTasks={allTasks}
+          dependencies={dependencies}
         />
       ))}
     </div>
@@ -83,12 +91,16 @@ export function Board({
   canWrite,
   members,
   milestones,
+  allTasks,
+  dependencies,
 }: {
   projectId: string;
   tasks: BoardTask[];
   canWrite: boolean;
   members: Option[];
   milestones: Option[];
+  allTasks: { id: string; title: string }[];
+  dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +144,8 @@ export function Board({
             canWrite={canWrite}
             members={members}
             milestones={milestones}
+            allTasks={allTasks}
+            dependencies={dependencies}
           />
         ))}
       </div>
