@@ -23,18 +23,21 @@
 
 ## 技术栈
 
-Next.js (App Router) · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 (JWT) · Tailwind CSS · Vitest
+Next.js (App Router) · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 (JWT) · Vercel AI SDK v5 (DeepSeek) · Tailwind CSS · Vitest
 
 ## 主要路由
 
 - `/teams` 我的团队（创建/加入）
 - `/teams/[teamId]/members` 成员管理（admin 改角色）
 - `/teams/[teamId]/projects` 项目列表（admin 创建）
-- `/projects/[projectId]` 项目详情：里程碑 + 看板拖拽 + 任务管理
+- `/projects/[projectId]` 项目详情：里程碑 + 看板拖拽 + 任务管理 + 项目助手对话
+- `/api/chat` 项目助手对话（Agent 读工具，POST）
 
 ## 文档
 
 - 设计：docs/superpowers/specs/2026-07-02-agilecampus-mvp-design.md
 - 作战图一（地基）：docs/superpowers/plans/2026-07-02-agilecampus-plan1-foundation.md
 - 作战图二（骨架）：docs/superpowers/plans/2026-07-03-agilecampus-plan2-skeleton.md
+- 图三设计（灵魂·上）：docs/superpowers/specs/2026-07-22-agilecampus-plan3-agent-design.md
+- 作战图三上（对话地基）：docs/superpowers/plans/2026-07-22-agilecampus-plan3a-agent-foundation.md
 - 技术债备案：docs/BACKLOG.md
