@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       projectId: parsed.data.projectId,
       userText: parsed.data.userText,
     });
-    return NextResponse.json({ text: result.text, toolTrace: result.toolTrace });
+    return NextResponse.json({ text: result.text, toolTrace: result.toolTrace, drafts: result.drafts });
   } catch (e) {
     if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });
     if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });

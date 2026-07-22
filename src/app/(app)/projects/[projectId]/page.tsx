@@ -92,7 +92,12 @@ export default async function ProjectPage({
         />
       </section>
 
-      <ChatPanel projectId={projectId} initialMessages={initialMessages} />
+      <ChatPanel
+        projectId={projectId}
+        initialMessages={initialMessages}
+        members={members}
+        milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
+      />
 
       {canWrite && (
         <NewTaskForm
