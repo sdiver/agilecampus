@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createTask, updateTask, deleteTask } from "@/lib/task";
+import { createTask, updateTask, deleteTask, setTaskSuccessors } from "@/lib/task";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
@@ -12,6 +12,7 @@ export type FormState = { error: string } | null;
 const createTaskSchema = z.object({
   projectId: z.uuid(),
   title: z.string().trim().min(1, "请填写任务标题"),
+  description: z.string().trim().optional(),
   assigneeId: z.uuid().optional(),
   dueDate: z.iso.date("日期格式不正确").optional(),
   milestoneId: z.uuid().optional(),
@@ -114,10 +115,12 @@ const updateTaskSchema = z.object({
   taskId: z.uuid(),
   projectId: z.uuid(),
   title: z.string().trim().min(1, "标题不可为空"),
+  description: z.string().trim().optional(),
   assigneeId: z.uuid().optional(),
   milestoneId: z.uuid().optional(),
   dueDate: z.iso.date("日期格式不正确").optional(),
   priority: z.enum(["low", "medium", "high"]),
+  completionNote: z.string().trim().optional(),
 });
 
 export async function updateTaskAction(
@@ -137,14 +140,21 @@ export async function updateTaskAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const { taskId, projectId, ...patch } = parsed.data;
+  const successorIds = formData
+    .getAll("successorIds")
+    .map(String)
+    .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
   try {
     await updateTask(session.user.id, taskId, {
       title: patch.title,
+      description: patch.description ?? null,
       assigneeId: patch.assigneeId ?? null,
       milestoneId: patch.milestoneId ?? null,
       dueDate: patch.dueDate ?? null,
       priority: patch.priority,
+      completionNote: patch.completionNote ?? null,
     });
+    await setTaskSuccessors(session.user.id, taskId, successorIds);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限修改任务" };
     if (e instanceof AppError) return { error: e.message };
