@@ -8,12 +8,15 @@ import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
 export type FormState = { error: string } | null;
+// 更新任务专用：成功回 { ok: true }，供编辑弹窗据以自闭
+export type UpdateTaskState = { error: string } | { ok: true } | null;
 
 const createTaskSchema = z.object({
   projectId: z.uuid(),
   title: z.string().trim().min(1, "请填写任务标题"),
   description: z.string().trim().optional(),
   assigneeId: z.uuid().optional(),
+  startDate: z.iso.date("日期格式不正确").optional(),
   dueDate: z.iso.date("日期格式不正确").optional(),
   milestoneId: z.uuid().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
@@ -30,6 +33,7 @@ export async function createTaskAction(
   const parsed = createTaskSchema.safeParse({
     ...raw,
     assigneeId: raw.assigneeId || undefined,
+    startDate: raw.startDate || undefined,
     dueDate: raw.dueDate || undefined,
     milestoneId: raw.milestoneId || undefined,
     priority: raw.priority || undefined,
@@ -118,15 +122,16 @@ const updateTaskSchema = z.object({
   description: z.string().trim().optional(),
   assigneeId: z.uuid().optional(),
   milestoneId: z.uuid().optional(),
+  startDate: z.iso.date("日期格式不正确").optional(),
   dueDate: z.iso.date("日期格式不正确").optional(),
   priority: z.enum(["low", "medium", "high"]),
   completionNote: z.string().trim().optional(),
 });
 
 export async function updateTaskAction(
-  _prev: FormState,
+  _prev: UpdateTaskState,
   formData: FormData,
-): Promise<FormState> {
+): Promise<UpdateTaskState> {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
@@ -135,6 +140,7 @@ export async function updateTaskAction(
     ...raw,
     assigneeId: raw.assigneeId || undefined,
     milestoneId: raw.milestoneId || undefined,
+    startDate: raw.startDate || undefined,
     dueDate: raw.dueDate || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -150,6 +156,7 @@ export async function updateTaskAction(
       description: patch.description ?? null,
       assigneeId: patch.assigneeId ?? null,
       milestoneId: patch.milestoneId ?? null,
+      startDate: patch.startDate ?? null,
       dueDate: patch.dueDate ?? null,
       priority: patch.priority,
       completionNote: patch.completionNote ?? null,
@@ -161,7 +168,7 @@ export async function updateTaskAction(
     throw e;
   }
   revalidatePath(`/projects/${projectId}`);
-  return null;
+  return { ok: true };
 }
 
 const deleteTaskSchema = z.object({

@@ -19,6 +19,7 @@ export type BoardTask = {
   completionNote: string | null;
   status: "todo" | "doing" | "done";
   priority: string;
+  startDate: string | null;
   dueDate: string | null;
   assigneeName: string | null;
   assigneeId: string | null;

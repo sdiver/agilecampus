@@ -58,7 +58,15 @@ export default async function ProjectPage({
   return (
     <main className="mx-auto max-w-5xl space-y-8 py-8">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-ink">{project.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-display text-2xl font-semibold text-ink">{project.name}</h1>
+          <a
+            href={`/projects/${projectId}/timeline`}
+            className="ac-btn-ghost whitespace-nowrap"
+          >
+            时间线
+          </a>
+        </div>
         {project.description && (
           <p className="mt-1 text-sm text-ink-soft">{project.description}</p>
         )}
@@ -84,6 +92,7 @@ export default async function ProjectPage({
             completionNote: t.completionNote,
             status: t.status,
             priority: t.priority,
+            startDate: t.startDate,
             dueDate: t.dueDate,
             assigneeName: t.assigneeName,
             assigneeId: t.assigneeId,

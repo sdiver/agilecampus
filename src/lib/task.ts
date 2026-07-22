@@ -47,6 +47,7 @@ export async function createTask(
     title: string;
     description?: string;
     assigneeId?: string;
+    startDate?: string;
     dueDate?: string;
     milestoneId?: string;
     priority?: TaskPriority;
@@ -63,6 +64,7 @@ export async function createTask(
       title: input.title,
       description: input.description,
       assigneeId: input.assigneeId,
+      startDate: input.startDate,
       dueDate: input.dueDate,
       milestoneId: input.milestoneId,
       priority: input.priority ?? "medium",
@@ -79,6 +81,7 @@ export async function updateTask(
     title?: string;
     description?: string | null;
     assigneeId?: string | null;
+    startDate?: string | null;
     dueDate?: string | null;
     milestoneId?: string | null;
     status?: TaskStatus;
@@ -101,6 +104,7 @@ export async function updateTask(
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.description !== undefined && { description: patch.description }),
       ...(patch.assigneeId !== undefined && { assigneeId: patch.assigneeId }),
+      ...(patch.startDate !== undefined && { startDate: patch.startDate }),
       ...(patch.dueDate !== undefined && { dueDate: patch.dueDate }),
       ...(patch.milestoneId !== undefined && { milestoneId: patch.milestoneId }),
       ...(patch.status !== undefined && { status: patch.status }),
@@ -130,6 +134,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       description: tasks.description,
       status: tasks.status,
       priority: tasks.priority,
+      startDate: tasks.startDate,
       dueDate: tasks.dueDate,
       sortOrder: tasks.sortOrder,
       milestoneId: tasks.milestoneId,

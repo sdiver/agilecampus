@@ -45,7 +45,14 @@ export function NewTaskForm({
           <option value="medium">中</option>
           <option value="high">高</option>
         </select>
-        <input type="date" name="dueDate" className="ac-field w-auto text-sm" />
+        <label className="flex items-center gap-1 text-sm text-ink-faint">
+          起
+          <input type="date" name="startDate" className="ac-field w-auto text-sm" />
+        </label>
+        <label className="flex items-center gap-1 text-sm text-ink-faint">
+          止
+          <input type="date" name="dueDate" className="ac-field w-auto text-sm" />
+        </label>
       </div>
       {state?.error && <p className="text-sm text-high">{state.error}</p>}
       <button disabled={pending} className="ac-btn px-3 py-2 text-sm">

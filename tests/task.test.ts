@@ -138,3 +138,29 @@ describe("deleteTask / listProjectTasks", () => {
     await expect(deleteTask(teacher.id, t.id)).rejects.toThrow("没有权限");
   });
 });
+
+describe("任务 startDate（时间线地基）", () => {
+  beforeEach(resetDb);
+
+  it("createTask 可存起始日，listProjectTasks 回读", async () => {
+    const { student, project } = await scene();
+    const t = await createTask(student.id, project.id, {
+      title: "实验一",
+      startDate: "2026-07-01",
+      dueDate: "2026-07-08",
+    });
+    expect(t.startDate).toBe("2026-07-01");
+    const [row] = await listProjectTasks(student.id, project.id);
+    expect(row.startDate).toBe("2026-07-01");
+    expect(row.dueDate).toBe("2026-07-08");
+  });
+
+  it("updateTask 可改起始日，可清空为 null", async () => {
+    const { student, project } = await scene();
+    const t = await createTask(student.id, project.id, { title: "实验" });
+    const u1 = await updateTask(student.id, t.id, { startDate: "2026-07-02" });
+    expect(u1.startDate).toBe("2026-07-02");
+    const u2 = await updateTask(student.id, t.id, { startDate: null });
+    expect(u2.startDate).toBeNull();
+  });
+});
