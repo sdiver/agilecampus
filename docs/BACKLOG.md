@@ -50,3 +50,10 @@
 - DeepSeek 真实「拆任务→确认→落库」演武待密钥
 - **批量落库非事务**（总审沉淀）：commitDraft 的 decompose/update/plan_sprint 循环无 db.transaction，中途第 k 项抛错则前 k 项已落库、请求返错、用户重试致重复；市场化前须事务化（须图二 createTask/updateTask 接受 tx 参数）
 - update_tasks 中不属本项目的 taskId 被误报为"版本冲突/他人改动"（实为无效 id）——纯提示文案，无安全影响
+
+## 图四（任务增强+总览）简化备案
+- 后置任务仅防直接成环（A↔B），未做间接环（A→B→C→A）检测——简单关联，不强制阻断执行
+- 完成情况(completionNote)仅编辑态填写，未做「拖入已完成时弹窗提示补充」的引导交互
+- 跨项目总览为列表+任务统计，未含管理员整体看板泳道/甘特图（留后续「图五·管理视图」）
+- listMyProjects 对 admin/teacher/student 一视同仁（无项目级成员表，沿图二备案）
+- 后置任务多选下拉在任务多时体验一般（原生 select multiple），未做更友好的选择器
