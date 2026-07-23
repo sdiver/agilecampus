@@ -48,7 +48,7 @@
 - 草案不入库持久化：仅随 assistant 消息 toolCalls 留痕 + 前端态；页面刷新后未落库的草案卡片消失（需重新对话）
 - 确认卡片可编辑聚焦核心字段：update_tasks 卡仅展示 patch（不可逐字段改）
 - DeepSeek 真实「拆任务→确认→落库」演武待密钥
-- **批量落库非事务**（总审沉淀）：commitDraft 的 decompose/update/plan_sprint 循环无 db.transaction，中途第 k 项抛错则前 k 项已落库、请求返错、用户重试致重复；市场化前须事务化（须图二 createTask/updateTask 接受 tx 参数）
+- ~~**批量落库非事务**（总审沉淀）：commitDraft 的 decompose/update/plan_sprint 循环无 db.transaction，中途第 k 项抛错则前 k 项已落库、请求返错、用户重试致重复；市场化前须事务化（须图二 createTask/updateTask 接受 tx 参数）~~ **[已偿·图七]** createTask/updateTask 收 tx，三分支裹 db.transaction，通知事务提交后补发
 - update_tasks 中不属本项目的 taskId 被误报为"版本冲突/他人改动"（实为无效 id）——纯提示文案，无安全影响
 
 ## 图四（任务增强+总览）简化备案
@@ -81,3 +81,15 @@
 - 时间线为项目级；跨项目/团队总甘特未做（留后续管理视图）
 - startDate 未校验 ≤ dueDate（前端可倒填）；甘特对 start>end 做防御性纠正，但 lib 未强约束
 - 时间线视图只读，未做在甘特上直接拖拽改期
+
+## 图七（飞书接入）简化备案
+- cron 端点无「当日已发」去重——逾期任务每日一提醒，靠外部调度每日一击天然节流；同日重跑会重复发
+- 日报仅按 assignee 聚合；未指派的临期/逾期任务无人可提醒（不发）
+- 完成通知仅发创建者一人；admin/teacher 全局视角后置
+- 飞书消息用纯文本，未做交互卡片（含「查看任务」跳转按钮）——富卡片后置
+- OAuth `state` 存 cookie 即可，未引入服务端 state 存储/一次性消费
+- token 缓存为进程内存——多实例各自缓存（各自换取，飞书侧允许）；未做共享缓存
+- 未做飞书事件订阅（用户在飞书内退订/停用应用的回调）——绑定后飞书号失效时发送失败仅记日志
+- `scanAndNotifyDue` 全库扫描——任务量大时未分页/分批；当前规模可接受
+- update_tasks 批量确认仅补发完成通知，未补发改派通知（改派走网页/CC 即时路径）
+- 真机飞书 OAuth 绑定验收（Task 6）须备妥凭证亲验，离线不可代
