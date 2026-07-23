@@ -33,6 +33,37 @@ npm run dev
 
 测试：`npm test`
 
+## 生产部署（一键全栈）
+
+`docker-compose.prod.yml` 编排 `db` + `migrate`（自动建表）+ `app` 三服务，同网络起，无需手动推 schema。
+
+```bash
+cp .env.example .env
+# 填齐生产密钥：
+#   AUTH_SECRET=$(openssl rand -base64 32)
+#   POSTGRES_PASSWORD=<强密码>          # db 密码，compose 变量插值单一来源
+#   AGILECAMPUS_URL=https://<对外域名>   # 飞书 OAuth 回调据此拼跳转
+#   DEEPSEEK_API_KEY / FEISHU_APP_ID / FEISHU_APP_SECRET=<真值>
+#   FEISHU_REDIRECT_URI=https://<对外域名>/api/auth/feishu/callback
+#   CRON_SECRET=$(openssl rand -hex 32)
+nano .env
+
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+`migrate` 服务待 `db` healthcheck 通过后跑 `db:push` 建表，成功退出后 `app` 方启动。`app` 内 `DATABASE_URL` 由 compose 指向服务名 `db`，覆盖 `.env` 的 localhost 值（无需改 `.env`）。
+
+**定时提醒**（临期/逾期私信）须由宿主 crontab 每日打一次 cron 端点：
+
+```bash
+( crontab -l 2>/dev/null; \
+  echo '0 9 * * * curl -fsS -X POST http://localhost:3000/api/cron/reminders -H "Authorization: Bearer <CRON_SECRET>" >/dev/null 2>&1' \
+) | crontab -
+```
+
+> NAS 部署：本机 `rsync -az --delete --exclude node_modules --exclude .next --exclude .git ./ root@<nas>:/volume1/docker/agilecampus/`，再 ssh 上去于该目录执行上述 `up` 命令。
+> 飞书应用后台须将 `FEISHU_REDIRECT_URI` 加入重定向白名单，绑定方能成。
+
 ## 主要路由
 
 | 路由 | 说明 |
