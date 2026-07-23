@@ -33,3 +33,48 @@ export async function getTenantAccessToken(): Promise<string> {
   };
   return tokenCache.token;
 }
+
+// OAuth：授权码 → 用户身份。v2 token 端点直接用 client_id/secret 换 user_access_token，
+// 再取用户信息拿 open_id。redirect_uri 须与授权发起时一致。
+export async function exchangeOAuthCode(code: string): Promise<{ openId: string; name: string }> {
+  const tokenRes = await fetch(`${BASE()}/open-apis/authen/v2/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "authorization_code",
+      client_id: requireEnv("FEISHU_APP_ID"),
+      client_secret: requireEnv("FEISHU_APP_SECRET"),
+      code,
+      redirect_uri: requireEnv("FEISHU_REDIRECT_URI"),
+    }),
+  });
+  const tokenData = (await tokenRes.json()) as { code?: number; access_token?: string; msg?: string };
+  if (!tokenData.access_token) {
+    throw new Error(`[feishu] OAuth 换 token 失败：${tokenData.code} ${tokenData.msg ?? ""}`);
+  }
+
+  const infoRes = await fetch(`${BASE()}/open-apis/authen/v1/user_info`, {
+    headers: { authorization: `Bearer ${tokenData.access_token}` },
+  });
+  const info = (await infoRes.json()) as { code: number; data?: { open_id: string; name: string }; msg?: string };
+  if (info.code !== 0 || !info.data) {
+    throw new Error(`[feishu] 取用户信息失败：${info.code} ${info.msg ?? ""}`);
+  }
+  return { openId: info.data.open_id, name: info.data.name };
+}
+
+// 发文本私信。content 须为 JSON 字符串（飞书要求）。
+export async function sendTextMessage(openId: string, text: string): Promise<void> {
+  const token = await getTenantAccessToken();
+  const res = await fetch(`${BASE()}/open-apis/im/v1/messages?receive_id_type=open_id`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      receive_id: openId,
+      msg_type: "text",
+      content: JSON.stringify({ text }),
+    }),
+  });
+  const data = (await res.json()) as { code: number; msg?: string };
+  if (data.code !== 0) throw new Error(`[feishu] 发消息失败：${data.code} ${data.msg ?? ""}`);
+}
