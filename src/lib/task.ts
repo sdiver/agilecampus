@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
+import type { DbTx } from "@/db";
 import {
   milestones,
   taskDependencies,
@@ -11,6 +12,7 @@ import {
 import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
 import { getProjectForUser } from "./project";
+import { notifyTaskAssigned, notifyTaskCompleted } from "./notify";
 
 // 任务写操作角色：admin + student（teacher 只读，设计文档 §5）
 const TASK_WRITE_ROLES = ["admin", "student"];
@@ -52,12 +54,14 @@ export async function createTask(
     milestoneId?: string;
     priority?: TaskPriority;
   },
+  opts?: { tx?: DbTx },
 ) {
+  const exec = opts?.tx ?? db;
   const access = await requireTaskWrite(actorId, projectId);
   if (input.assigneeId) await validateAssignee(access.project.teamId, input.assigneeId);
   if (input.milestoneId) await validateMilestone(projectId, input.milestoneId);
 
-  const [task] = await db
+  const [task] = await exec
     .insert(tasks)
     .values({
       projectId,
@@ -72,6 +76,9 @@ export async function createTask(
       sortOrder: Date.now(),
     })
     .returning();
+
+  // 非事务路径：即时通知（fire-and-forget，通知内部已吞异常）。事务路径由调用方提交后补发。
+  if (!opts?.tx && task.assigneeId) void notifyTaskAssigned(task);
   return task;
 }
 
@@ -89,8 +96,10 @@ export async function updateTask(
     priority?: TaskPriority;
     completionNote?: string | null;
   },
+  opts?: { tx?: DbTx },
 ) {
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  const exec = opts?.tx ?? db;
+  const [task] = await exec.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
 
   const access = await requireTaskWrite(actorId, task.projectId);
@@ -98,7 +107,7 @@ export async function updateTask(
   if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
 
   // 显式白名单构造，勿用 ...patch 展开：运行时宽对象可夹带 projectId/sortOrder 等越权字段
-  const [updated] = await db
+  const [updated] = await exec
     .update(tasks)
     // updatedAt 取 DB 时钟（now()）而非宿主机 new Date()：与 createdAt 的 defaultNow() 同源，保证单调性
     .set({
@@ -116,6 +125,13 @@ export async function updateTask(
     .where(eq(tasks.id, taskId))
     .returning();
   if (!updated) throw new AppError("任务不存在");
+
+  if (!opts?.tx) {
+    // 改派：通知新负责人
+    if (patch.assigneeId && patch.assigneeId !== task.assigneeId) void notifyTaskAssigned(updated);
+    // 完成：通知创建者(≠操作者)
+    if (patch.status === "done" && task.status !== "done") void notifyTaskCompleted(updated, actorId);
+  }
   return updated;
 }
 
