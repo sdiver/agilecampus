@@ -27,6 +27,9 @@ describe("notifyTaskAssigned", () => {
     await bindFeishu(owner.id, { openId: "ou_owner", name: "主帅" });
     const task = await createTask(owner.id, project.id, { title: "斥候", assigneeId: owner.id, dueDate: "2026-08-01" });
 
+    await new Promise((r) => setTimeout(r, 50)); // 让 createTask 的游离即时通知先跑完
+    sendMock.mockClear();                         // 清掉 createTask 副作用产生的调用
+
     const { notifyTaskAssigned } = await import("@/lib/notify");
     await notifyTaskAssigned(task);
 
@@ -103,6 +106,9 @@ describe("scanAndNotifyDue", () => {
     // done 的逾期任务不计
     const doneTask = await createTask(owner.id, project.id, { title: "已完成", assigneeId: owner.id, dueDate: iso(yesterday) });
     await db.update(tasks).set({ status: "done" }).where(eq(tasks.id, doneTask.id));
+
+    await new Promise((r) => setTimeout(r, 50)); // 让 createTask 的游离即时通知先跑完
+    sendMock.mockClear();                         // 清掉 createTask 副作用产生的调用
 
     const { scanAndNotifyDue } = await import("@/lib/notify");
     const r = await scanAndNotifyDue();
