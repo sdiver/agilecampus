@@ -61,6 +61,7 @@ export async function createTask(
     .insert(tasks)
     .values({
       projectId,
+      createdById: actorId,
       title: input.title,
       description: input.description,
       assigneeId: input.assigneeId,

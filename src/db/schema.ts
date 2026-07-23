@@ -19,6 +19,10 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
+  // 飞书绑定（一对一，可空=未绑定）：open_id 为应用内用户唯一标识，发私信用之
+  feishuOpenId: text("feishu_open_id").unique(),
+  feishuName: text("feishu_name"),
+  feishuBoundAt: timestamp("feishu_bound_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -98,6 +102,9 @@ export const tasks = pgTable(
     description: text("description"),
     completionNote: text("completion_note"),
     assigneeId: uuid("assignee_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdById: uuid("created_by_id").references(() => users.id, {
       onDelete: "set null",
     }),
     startDate: date("start_date"),

@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { tasks } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject, createMilestone } from "@/lib/project";
@@ -162,5 +165,20 @@ describe("任务 startDate（时间线地基）", () => {
     expect(u1.startDate).toBe("2026-07-02");
     const u2 = await updateTask(student.id, t.id, { startDate: null });
     expect(u2.startDate).toBeNull();
+  });
+});
+
+describe("createTask 记录创建者", () => {
+  beforeEach(resetDb);
+
+  it("createdById = 操作者", async () => {
+    const { student, project } = await scene();
+    const t = await createTask(student.id, project.id, { title: "筹备粮草" });
+
+    const [row] = await db
+      .select({ createdById: tasks.createdById })
+      .from(tasks)
+      .where(eq(tasks.id, t.id));
+    expect(row.createdById).toBe(student.id);
   });
 });
