@@ -116,3 +116,23 @@ describe("commitDraft — plan_sprint", () => {
     expect(rows.every((x) => x.milestoneId === m.id && x.dueDate === "2026-11-30")).toBe(true);
   });
 });
+
+describe("commitDraft 事务化", () => {
+  beforeEach(resetDb);
+
+  it("decompose 中途非法 milestoneId → 整批回滚（无残留）", async () => {
+    const { owner, project } = await scene();
+    // 第 2 个任务 milestoneId 非法 → validateMilestone 抛错 → 整批回滚
+    await expect(
+      commitDraft(owner.id, project.id, "decompose_tasks", {
+        tasks: [
+          { title: "合法一" },
+          { title: "非法二", milestoneId: "00000000-0000-0000-0000-000000000000" },
+        ],
+      }),
+    ).rejects.toThrow();
+
+    const after = await listProjectTasks(owner.id, project.id);
+    expect(after).toHaveLength(0); // 「合法一」不得残留
+  });
+});
