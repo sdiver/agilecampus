@@ -85,3 +85,13 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/resource-usage" \
 - 令牌库中只存 sha256 hash，明文只在生成时返回一次。
 - 外部写入一律不被信任：`token → userId → lib 权限校验`，越权由业务层拒绝。
 - 令牌泄露即在设置页撤销，立即失效。
+
+## 定时提醒（cron）
+
+`POST /api/cron/reminders` 由外部调度每日打一次，扫临期/逾期任务并飞书私信负责人。以 `CRON_SECRET` 鉴权：
+
+    curl -X POST "$AGILECAMPUS_URL/api/cron/reminders" -H "Authorization: Bearer $CRON_SECRET"
+
+NAS 部署可用 host crontab（每日 09:00）：
+
+    0 9 * * * curl -fsS -X POST "http://localhost:3000/api/cron/reminders" -H "Authorization: Bearer <CRON_SECRET>" >/dev/null 2>&1
