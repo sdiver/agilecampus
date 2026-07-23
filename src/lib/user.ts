@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "./password";
 import { AppError, isUniqueViolation } from "./errors";
 
@@ -28,4 +28,24 @@ export async function createUser(input: {
     if (isUniqueViolation(e)) throw new AppError("该邮箱已被注册");
     throw e;
   }
+}
+
+// 绑定当前用户的飞书身份。open_id 唯一——已被他人绑定则转译友好错误。
+export async function bindFeishu(userId: string, input: { openId: string; name: string }) {
+  try {
+    await db
+      .update(users)
+      .set({ feishuOpenId: input.openId, feishuName: input.name, feishuBoundAt: sql`now()` })
+      .where(eq(users.id, userId));
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new AppError("该飞书账号已绑定其他用户");
+    throw e;
+  }
+}
+
+export async function unbindFeishu(userId: string) {
+  await db
+    .update(users)
+    .set({ feishuOpenId: null, feishuName: null, feishuBoundAt: null })
+    .where(eq(users.id, userId));
 }
