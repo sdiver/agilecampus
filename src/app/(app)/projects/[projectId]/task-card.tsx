@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
   deleteTaskAction,
@@ -37,6 +38,11 @@ export function TaskCard({
   dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const [editing, setEditing] = useState(false);
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）
+    if (canWrite && searchParams.get("task") === task.id) setEditing(true);
+  }, [searchParams, task.id, canWrite]);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: !canWrite || editing,
