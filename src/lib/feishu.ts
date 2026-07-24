@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 // 飞书斥候：自建应用 API 封装。所有请求以 FEISHU_BASE_URL 为 base。
 // 端点基于飞书开放平台标准；实现前以官方文档核验路径与字段。
 
@@ -77,4 +78,42 @@ export async function sendTextMessage(openId: string, text: string): Promise<voi
   });
   const data = (await res.json()) as { code: number; msg?: string };
   if (data.code !== 0) throw new Error(`[feishu] 发消息失败：${data.code} ${data.msg ?? ""}`);
+}
+
+// jsapi_ticket 内存缓存（仿 tenant_access_token），留 300s 安全余量。
+let ticketCache: { ticket: string; expiresAt: number } | null = null;
+
+export async function getJsapiTicket(): Promise<string> {
+  if (ticketCache && Date.now() < ticketCache.expiresAt) return ticketCache.ticket;
+
+  const token = await getTenantAccessToken();
+  const res = await fetch(`${BASE()}/open-apis/jssdk/ticket/get`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+  const data = (await res.json()) as {
+    code: number;
+    data?: { ticket: string; expire_in: number };
+    msg?: string;
+  };
+  if (data.code !== 0 || !data.data) {
+    throw new Error(`[feishu] 取 jsapi_ticket 失败：${data.code} ${data.msg ?? ""}`);
+  }
+  ticketCache = {
+    ticket: data.data.ticket,
+    expiresAt: Date.now() + (data.data.expire_in ?? 7200) * 1000 - 300_000,
+  };
+  return ticketCache.ticket;
+}
+
+// JSSDK config 签名：sha1(拼接串)。串顺序与字段名由飞书规定，实现前核验。
+export function buildJsapiSignature(input: {
+  ticket: string;
+  nonceStr: string;
+  timestamp: number;
+  url: string;
+}): string {
+  const raw = `jsapi_ticket=${input.ticket}&noncestr=${input.nonceStr}&timestamp=${input.timestamp}&url=${input.url}`;
+  return createHash("sha1").update(raw).digest("hex");
 }
