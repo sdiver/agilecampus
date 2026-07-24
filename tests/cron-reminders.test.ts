@@ -7,7 +7,7 @@ import { POST as cronRoute } from "@/app/api/cron/reminders/route";
 import { resetDb } from "./helpers";
 
 const sendMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/feishu", () => ({ sendTextMessage: (...a: unknown[]) => sendMock(...a) }));
+vi.mock("@/lib/feishu", () => ({ sendCardMessage: (...a: unknown[]) => sendMock(...a) }));
 
 function req(secret?: string) {
   return new Request("http://test/api/cron/reminders", {

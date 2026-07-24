@@ -8,9 +8,9 @@ import { tasks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resetDb } from "./helpers";
 
-// mock 飞书斥候：只验是否被调、收件人与文案
+// mock 飞书斥候：只验是否被调、收件人与卡片内容
 const sendMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/feishu", () => ({ sendTextMessage: (...a: unknown[]) => sendMock(...a) }));
+vi.mock("@/lib/feishu", () => ({ sendCardMessage: (...a: unknown[]) => sendMock(...a) }));
 
 async function base() {
   const owner = await createUser({ email: "owner@e.com", password: "password123", name: "主帅" });
@@ -35,7 +35,7 @@ describe("notifyTaskAssigned", () => {
 
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock.mock.calls[0][0]).toBe("ou_owner");
-    expect(String(sendMock.mock.calls[0][1])).toContain("斥候");
+    expect(JSON.stringify(sendMock.mock.calls[0][1])).toContain("斥候"); // 卡片含任务标题
   });
 
   it("负责人未绑飞书 → 跳过", async () => {
@@ -114,10 +114,10 @@ describe("scanAndNotifyDue", () => {
     const r = await scanAndNotifyDue();
 
     expect(sendMock).toHaveBeenCalledTimes(1); // 同一负责人一封
-    const text = String(sendMock.mock.calls[0][1]);
-    expect(text).toContain("临期活");
-    expect(text).toContain("逾期活");
-    expect(text).not.toContain("已完成");
+    const card = JSON.stringify(sendMock.mock.calls[0][1]);
+    expect(card).toContain("临期活");
+    expect(card).toContain("逾期活");
+    expect(card).not.toContain("已完成");
     expect(r.notified).toBe(1);
   });
 

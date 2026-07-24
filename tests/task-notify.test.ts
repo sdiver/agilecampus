@@ -6,7 +6,7 @@ import { createTask, updateTask } from "@/lib/task";
 import { resetDb } from "./helpers";
 
 const sendMock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/feishu", () => ({ sendTextMessage: (...a: unknown[]) => sendMock(...a) }));
+vi.mock("@/lib/feishu", () => ({ sendCardMessage: (...a: unknown[]) => sendMock(...a) }));
 
 // fire-and-forget 的通知内部有一次真实 DB 查询（openIdOf），耗时超过单个 setTimeout(0) 宏任务；
 // 轮询等待，给游离 promise 足够时间落地，同时不拖慢测试。
