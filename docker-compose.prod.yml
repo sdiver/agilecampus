@@ -49,7 +49,8 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "3000:3000"
+      # 宿主 3000 常被占用；默认避让至 3080，可经 .env 的 APP_PORT 覆盖
+      - "${APP_PORT:-3080}:3000"
 
 volumes:
   pgdata:
