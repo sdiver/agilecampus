@@ -1,16 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { auth } from "@/lib/auth";
 
 const BASE = process.env.FEISHU_BASE_URL ?? "https://open.feishu.cn";
-const SITE = process.env.AGILECAMPUS_URL ?? "http://localhost:3000";
 
-// 发起飞书 OAuth：须已登录（绑定对象=当前 session 用户）。state 存 cookie 防 CSRF。
+// 发起飞书 OAuth——登录与绑定共用。用途由 callback 按 session 有无分流。
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.redirect(new URL("/login", SITE));
-
   const state = randomBytes(16).toString("hex");
   const store = await cookies();
   store.set("feishu_oauth_state", state, {

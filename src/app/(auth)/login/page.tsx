@@ -4,6 +4,7 @@ import { Suspense, useActionState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginAction, type FormState } from "./actions";
+import { FeishuLogin } from "./feishu-login";
 
 function LoginForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
@@ -27,6 +28,7 @@ function LoginForm() {
       <p className="text-sm text-ink-soft">
         没有账号？<Link href="/register" className="text-primary hover:underline">去注册</Link>
       </p>
+      <FeishuLogin />
     </main>
   );
 }
