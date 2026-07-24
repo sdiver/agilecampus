@@ -32,7 +32,7 @@
 - Create: `src/lib/feishu-card.ts`
 - Test: `tests/feishu.test.ts`（追加 sendCardMessage）、`tests/feishu-card.test.ts`（新建）
 
-- [ ] **Step 1: 写 sendCardMessage 失败测试**
+- [x] **Step 1: 写 sendCardMessage 失败测试**
 
 在 `tests/feishu.test.ts` 末尾追加：
 
@@ -73,12 +73,12 @@ describe("sendCardMessage", () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试验证失败**
+- [x] **Step 2: 跑测试验证失败**
 
 Run: `npm test -- tests/feishu.test.ts`
 Expected: FAIL（`sendCardMessage` 未导出）。
 
-- [ ] **Step 3: 实现 sendCardMessage**
+- [x] **Step 3: 实现 sendCardMessage**
 
 在 `src/lib/feishu.ts` 末尾追加：
 
@@ -100,12 +100,12 @@ export async function sendCardMessage(openId: string, card: unknown): Promise<vo
 }
 ```
 
-- [ ] **Step 4: 跑测试验证通过**
+- [x] **Step 4: 跑测试验证通过**
 
 Run: `npm test -- tests/feishu.test.ts`
 Expected: PASS（含既有 sendTextMessage 用例）。
 
-- [ ] **Step 5: 写卡片模板失败测试**
+- [x] **Step 5: 写卡片模板失败测试**
 
 Create `tests/feishu-card.test.ts`:
 
@@ -156,12 +156,12 @@ describe("buildDueReminderCard", () => {
 });
 ```
 
-- [ ] **Step 6: 跑测试验证失败**
+- [x] **Step 6: 跑测试验证失败**
 
 Run: `npm test -- tests/feishu-card.test.ts`
 Expected: FAIL（`@/lib/feishu-card` 不存在）。
 
-- [ ] **Step 7: 实现 feishu-card.ts**
+- [x] **Step 7: 实现 feishu-card.ts**
 
 Create `src/lib/feishu-card.ts`:
 
@@ -249,12 +249,12 @@ export function buildDueReminderCard(input: { overdue: ReminderItem[]; dueSoon: 
 }
 ```
 
-- [ ] **Step 8: 跑测试验证通过**
+- [x] **Step 8: 跑测试验证通过**
 
 Run: `npm test -- tests/feishu-card.test.ts`
 Expected: PASS（三用例）。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add src/lib/feishu.ts src/lib/feishu-card.ts tests/feishu.test.ts tests/feishu-card.test.ts
@@ -269,7 +269,7 @@ git commit -m "feat: sendCardMessage + 三类飞书卡片模板(含深链)"
 - Modify: `src/lib/notify.ts`
 - Test: `tests/notify.test.ts`（改 mock 与断言）、`tests/task-notify.test.ts` / `tests/cron-reminders.test.ts`（mock 更新）
 
-- [ ] **Step 1: 更新 notify.test.ts —— mock sendCardMessage + 断言卡片**
+- [x] **Step 1: 更新 notify.test.ts —— mock sendCardMessage + 断言卡片**
 
 将 `tests/notify.test.ts` 顶部的 feishu mock 改为暴露 `sendCardMessage`：
 
@@ -289,12 +289,12 @@ vi.mock("@/lib/feishu", () => ({ sendCardMessage: (...a: unknown[]) => sendMock(
 
 `scanAndNotifyDue` 聚合用例同理，断言 `JSON.stringify(card)` 含「临期活」「逾期活」、不含「已完成」。其余（未绑跳过、创建者=操作者不发、fire-and-forget 不抛）断言逻辑不变，仅 mock 名从 sendText 改 sendCard。
 
-- [ ] **Step 2: 跑测试验证失败**
+- [x] **Step 2: 跑测试验证失败**
 
 Run: `npm test -- tests/notify.test.ts`
 Expected: FAIL（notify 仍调 sendTextMessage，sendCardMessage mock 未被调用 → `toHaveBeenCalled` 失败）。
 
-- [ ] **Step 3: 改 notify.ts —— 补查字段 + 改调卡片**
+- [x] **Step 3: 改 notify.ts —— 补查字段 + 改调卡片**
 
 将 `src/lib/notify.ts` 全文替换为：
 
@@ -416,19 +416,19 @@ export async function scanAndNotifyDue(): Promise<{ notified: number; tasksScann
 }
 ```
 
-- [ ] **Step 4: 跑测试验证通过**
+- [x] **Step 4: 跑测试验证通过**
 
 Run: `npm test -- tests/notify.test.ts`
 Expected: PASS。
 
-- [ ] **Step 5: 更新其余 mock feishu 的测试**
+- [x] **Step 5: 更新其余 mock feishu 的测试**
 
 `tests/task-notify.test.ts`、`tests/cron-reminders.test.ts` 顶部的 `vi.mock("@/lib/feishu", () => ({ sendTextMessage: ... }))` 改为 `({ sendCardMessage: (...a) => sendMock(...a) })`（断言「被调/收件人」逻辑不变，卡片文案断言用 `JSON.stringify`）。检查 `tests/agent-commit.test.ts` 是否 mock feishu——若无则不动。
 
 Run: `npm test`
 Expected: 全绿。说明：notify 现查 `projects` 表——本仓测试建 task 必经 createProject（task.projectId 恒有对应 project），enrich 查得到；未绑飞书者在 openIdOf 即 return，不触发 enrich。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/lib/notify.ts tests/notify.test.ts tests/task-notify.test.ts tests/cron-reminders.test.ts
@@ -444,7 +444,7 @@ git commit -m "feat: notify 三通知卡片化(补查项目名/负责人名)"
 
 > 说明：深链为纯前端交互，`TaskCard` 挂载时读 `?task=` 与自身 id 匹配即打开 `EditModal`。仅 `canWrite`（有 EditModal）时打开；只读者深链不打开弹窗（简化备案，MVP 可接受）。前端交互离线难以单测，落代码 + 手动验收。
 
-- [ ] **Step 1: TaskCard 读 ?task= 自动开弹窗**
+- [x] **Step 1: TaskCard 读 ?task= 自动开弹窗**
 
 `src/app/(app)/projects/[projectId]/task-card.tsx` 顶部 import 已有 `useEffect`/`useState`（第 3 行 `import { useActionState, useEffect, useState } from "react";`）；补 `import { useSearchParams } from "next/navigation";`。
 
@@ -458,16 +458,16 @@ git commit -m "feat: notify 三通知卡片化(补查项目名/负责人名)"
   }, [searchParams, task.id, canWrite]);
 ```
 
-- [ ] **Step 2: 编译检查**
+- [x] **Step 2: 编译检查**
 
 Run: `npx tsc --noEmit`
 Expected: 无新增类型错误。
 
-- [ ] **Step 3: 手动验收**
+- [x] **Step 3: 手动验收**
 
 `npm run dev`，登录后访问 `/projects/<项目id>?task=<该项目某任务id>` → 页面加载后应自动弹出该任务的编辑弹窗。无 `?task=` 时行为不变。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add "src/app/(app)/projects/[projectId]/task-card.tsx"
