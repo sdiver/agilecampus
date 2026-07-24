@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "./password";
+import { exchangeOAuthCode } from "./feishu";
 import { AppError, isUniqueViolation } from "./errors";
 
 export async function createUser(input: {
@@ -85,4 +86,10 @@ export async function findOrCreateByFeishu(input: { openId: string; name: string
     }
     throw e;
   }
+}
+
+// 飞书登录归一入口：一次性 code → openId → 找/建账号。OAuth 与 JSSDK 两路共用。
+export async function loginWithFeishuCode(code: string) {
+  const { openId, name } = await exchangeOAuthCode(code);
+  return findOrCreateByFeishu({ openId, name });
 }
