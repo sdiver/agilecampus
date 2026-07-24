@@ -117,3 +117,19 @@ export function buildJsapiSignature(input: {
   const raw = `jsapi_ticket=${input.ticket}&noncestr=${input.nonceStr}&timestamp=${input.timestamp}&url=${input.url}`;
   return createHash("sha1").update(raw).digest("hex");
 }
+
+// 发 interactive 卡片私信。card 为飞书卡片 JSON 对象，content 须序列化为字符串。
+export async function sendCardMessage(openId: string, card: unknown): Promise<void> {
+  const token = await getTenantAccessToken();
+  const res = await fetch(`${BASE()}/open-apis/im/v1/messages?receive_id_type=open_id`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      receive_id: openId,
+      msg_type: "interactive",
+      content: JSON.stringify(card),
+    }),
+  });
+  const data = (await res.json()) as { code: number; msg?: string };
+  if (data.code !== 0) throw new Error(`[feishu] 发卡片失败：${data.code} ${data.msg ?? ""}`);
+}

@@ -97,3 +97,38 @@ describe("sendTextMessage", () => {
     await expect(sendTextMessage("ou_x", "x")).rejects.toThrow();
   });
 });
+
+describe("sendCardMessage", () => {
+  it("以 open_id 发 interactive 卡片（带 tenant token）", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 0, tenant_access_token: "t-abc", expire: 7200 }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0 }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { sendCardMessage } = await import("@/lib/feishu");
+    await sendCardMessage("ou_1", { config: {}, elements: [] });
+
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(String(url)).toContain("/open-apis/im/v1/messages?receive_id_type=open_id");
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.receive_id).toBe("ou_1");
+    expect(body.msg_type).toBe("interactive");
+    expect(typeof body.content).toBe("string");
+    expect(JSON.parse(body.content)).toEqual({ config: {}, elements: [] });
+  });
+
+  it("飞书返回非零 code → 抛错", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 0, tenant_access_token: "t", expire: 7200 }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 230006, msg: "bot not activated" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendCardMessage } = await import("@/lib/feishu");
+    await expect(sendCardMessage("ou_x", {})).rejects.toThrow();
+  });
+});
