@@ -72,6 +72,110 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/resource-usage" \
   -d '{"teamId":"...","resourceName":"GPU-01","purpose":"训练模型","startTime":"2026-07-22T14:00:00Z"}'
 ```
 
+### 4. 列我的项目 — `GET /api/agent/projects`
+
+返回令牌主人参与的全部项目（跨团队）及任务统计。无参数。
+
+```bash
+curl "$AGILECAMPUS_URL/api/agent/projects" -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
+# → {"projects":[{"id":"...","name":"赤壁演习","status":"active","teamId":"...",
+#     "teamName":"东吴实验室","taskTotal":12,"doneCount":5}]}
+```
+
+### 5. 新建项目 — `POST /api/agent/projects`
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `teamId` | uuid | 是 | 目标团队（令牌主人须为该团队 admin） |
+| `name` | string | 是 | 项目名 |
+| `description` | string | 否 | 描述 |
+| `startDate` / `endDate` | string | 否 | `YYYY-MM-DD` |
+
+```bash
+curl -X POST "$AGILECAMPUS_URL/api/agent/projects" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"teamId":"...","name":"夷陵之役","startDate":"2026-09-01"}'
+```
+
+### 6. 项目详情 — `GET /api/agent/projects/{projectId}`
+
+返回项目本体 + 里程碑清单 + 任务状态计数。
+
+```bash
+curl "$AGILECAMPUS_URL/api/agent/projects/$PID" -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
+# → {"id":"...","name":"赤壁演习","status":"active","myRole":"admin","taskTotal":12,
+#     "byStatus":{"todo":5,"doing":2,"done":5},
+#     "milestones":[{"id":"...","title":"中期答辩","status":"open","targetDate":"2026-09-01"}]}
+```
+
+### 7. 改项目 / 归档 — `PATCH /api/agent/projects/{projectId}`
+
+仅团队 admin 可动。至少提供一个字段；传 `null` 表示清空该字段。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `name` | string | 项目名 |
+| `description` | string \| null | 描述 |
+| `startDate` / `endDate` | string \| null | `YYYY-MM-DD` |
+| `status` | `active`\|`archived` | 归档用 `archived` |
+
+```bash
+curl -X PATCH "$AGILECAMPUS_URL/api/agent/projects/$PID" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"status":"archived"}'
+```
+
+### 8. 列项目下的任务 — `GET /api/agent/projects/{projectId}/tasks`
+
+可选查询参数：`status`（`todo`/`doing`/`done`）、`assigneeId`（uuid）、`dueBefore`（`YYYY-MM-DD`，含当日）。
+
+```bash
+curl "$AGILECAMPUS_URL/api/agent/projects/$PID/tasks?status=todo" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
+# → {"tasks":[{"id":"...","title":"撰写问卷","status":"todo","priority":"high",
+#     "dueDate":"2026-09-01","assigneeName":"周瑜","parentTaskId":null, ...}]}
+```
+
+### 9. 在项目下建任务 — `POST /api/agent/projects/{projectId}/tasks`
+
+字段同端点 1，但 `projectId` 取自路径而非 body。端点 1（`POST /api/agent/tasks`）为旧约，仍可用。
+
+```bash
+curl -X POST "$AGILECAMPUS_URL/api/agent/projects/$PID/tasks" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"撰写调研问卷","priority":"high"}'
+```
+
+### 10. 任务详情 — `GET /api/agent/tasks/{taskId}`
+
+```bash
+curl "$AGILECAMPUS_URL/api/agent/tasks/$TID" -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
+# → {"id":"...","projectId":"...","title":"调研现有方案","status":"doing","priority":"medium",
+#     "startDate":null,"dueDate":"2026-09-01","milestoneId":"...","parentTaskId":null,
+#     "assigneeId":"...","assigneeName":"周瑜","completionNote":null,
+#     "createdAt":"2026-07-25T09:42:20.351Z","updatedAt":"2026-07-25T09:42:20.351Z"}
+```
+
+### 11. 在任务下建子任务 — `POST /api/agent/tasks/{taskId}/subtasks`
+
+字段同端点 9。所属项目由父任务推得，**无须传 `projectId`**；父任务删除时子任务级联删除。
+
+```bash
+curl -X POST "$AGILECAMPUS_URL/api/agent/tasks/$TID/subtasks" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"子任务：设计接口","priority":"high"}'
+# → {"id":"...","title":"子任务：设计接口","status":"todo","parentTaskId":"...","projectId":"..."}
+```
+
+### 12. 列任务的子任务 — `GET /api/agent/tasks/{taskId}/subtasks`
+
+只列**直接子级**，不递归取孙级。
+
+```bash
+curl "$AGILECAMPUS_URL/api/agent/tasks/$TID/subtasks" -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
+# → {"parentTaskId":"...","subtasks":[{"id":"...","title":"子任务：设计接口","status":"todo", ...}]}
+```
+
 ## 响应与错误
 
 - `200`：成功，返回创建/更新后的精简对象（含 `id`）。

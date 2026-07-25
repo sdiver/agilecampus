@@ -68,7 +68,7 @@
 - endResourceUsage 权限=登记者本人 or 团队 admin；teacher/其他成员不可结束他人占用
 - /api/agent/* 无速率限制，防滥用（限流）后置
 - resource-usage 端点时间用 z.coerce.date()，时区取决于调用方传入的 ISO 串；网页表单用 datetime-local（本地墙钟）
-- CC 仅「写入」（加任务/填完成/登记资源），未做「读」端点（查进度/列任务）——陛下所命
+- ~~CC 仅「写入」（加任务/填完成/登记资源），未做「读」端点（查进度/列任务）——陛下所命~~ **[已偿·图八]** 补五道读端点：`GET /projects`、`GET /projects/{id}`、`GET /projects/{id}/tasks`、`GET /tasks/{id}`、`GET /tasks/{id}/subtasks`
 - CC skill 需用户手动配置 AGILECAMPUS_TOKEN/AGILECAMPUS_URL 环境变量；skill 未自动发现 project/team 的 uuid（需用户提供或从地址栏取）
 - 尚未攻取：C 实验时间线视图、E 飞书接入（须陛下先备飞书 AppID/Secret）
 
@@ -93,3 +93,25 @@
 - `scanAndNotifyDue` 全库扫描——任务量大时未分页/分批；当前规模可接受
 - update_tasks 批量确认仅补发完成通知，未补发改派通知（改派走网页/CC 即时路径）
 - 真机飞书 OAuth 绑定验收（Task 6）须备妥凭证亲验，离线不可代
+
+## 图八（AI 修复 + 项目管理 API + 子任务）简化备案
+
+### 本役沉淀（教训）
+- **DeepSeek 番号已改制**：`deepseek-chat` 遭废弃，今只认 `deepseek-v4-pro` / `deepseek-v4-flash`，误用返 400 `invalid_request_error`。此即「对话失败，请重试」500 之真因（APICallError 非 AppError，落入通用分支）。现取 `DEEPSEEK_MODEL` 环境变量，缺省 `deepseek-v4-flash`。**日后模型番号务必置于配置，勿硬编码。**
+- **快照缺 id 则写工具形同虚设**：旧快照只给成员名与里程碑标题，不给 uuid，模型遂无从填 `assigneeId`/`milestoneId`，指派与排期必空。今补 `id=` 于成员/里程碑/任务三段，并补「今天是 YYYY-MM-DD」——缺此则相对日期（「下周五」）必错。
+- **模型会「演」草案而不调工具**：DeepSeek 曾口称「已拟好变更草案」而 `drafts` 实为空，界面一片空白。prompt 须显式声明「只有真正调用工具才会生成草案卡片，你写的文字不会变成草案」方止此弊。
+- **模型过度盘问亦是缺陷**：仅告以「信息不足先问清楚」，模型对「帮我建个完成ai的任务」一味追问。须以实例立法（示以具体输入与应有动作）方肯动手。prompt 中一则范例胜过三条抽象规矩。
+
+### 简化取舍
+- 子任务仅一层语义（`parent_task_id` 自引用），API 只列**直接子级**不递归；深层树形与「展开全部子孙」后置
+- **既有看板/甘特/统计视图未识子任务**——子任务作为普通任务平铺显示，父任务统计不含子任务汇总。UI 层级呈现留待陛下定夺
+- `updateTask` 未开放改 `parentTaskId`（故无成环之虞，亦无须环检测）；如日后开放，须补环检测
+- AI 写工具（`decompose_tasks`）未支持 `parentTaskId`——AI 拆出的任务一律为顶层
+- `POST /api/agent/tasks`（body 传 projectId）与 `POST /api/agent/projects/{id}/tasks`（路径传）并存，功能重叠；保留旧约以免折损在用之 skill
+- `create_milestone` 落库需 admin（沿 `createMilestone` 口径），student 拟出草案却点不动「确认落库」——提示文案未作角色预判
+- `GET /projects/{id}/tasks` 之筛选在应用层做（取全量再 filter），未下推 SQL；当前规模可接受
+- `getTaskDetail`/`listSubtasks` 沿旧口径，「任务不存在」先于权限返回（uuid 不可枚举，风险极低）
+- 真实模型演武置于 `tests/agent-live.test.ts`，以 `describe.skipIf(!process.env.DEEPSEEK_API_KEY)` 自守——`.env.test` 无此变量，故 `npm test` 自动跳过、不耗额度。真打跑法：
+  `export DEEPSEEK_API_KEY=sk-xxx && npx dotenv -e .env.test -- npx vitest run tests/agent-live.test.ts`
+  （注：vitest 4 已无 `--include` 旗号，勿用）
+- `tests/agent-drafts.test.ts` 在全量并行下偶发 5s 超时（单跑 852ms 即捷）——共享测试库之粮道拥塞，未调 `testTimeout`
