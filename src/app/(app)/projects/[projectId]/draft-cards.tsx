@@ -124,6 +124,26 @@ function DraftCard({
     );
   }
 
+  if (draft.tool === "create_milestone") {
+    const d = data as { title?: string; targetDate?: string };
+    return (
+      <CardShell title="创建里程碑" onConfirm={() => commit(projectId, "create_milestone", d)}>
+        <input
+          value={d.title ?? ""}
+          onChange={(e) => setData({ ...d, title: e.target.value })}
+          placeholder="里程碑名称"
+          className="ac-field text-xs"
+        />
+        <input
+          type="date"
+          value={d.targetDate ?? ""}
+          onChange={(e) => setData({ ...d, targetDate: e.target.value || undefined })}
+          className="ac-field w-auto text-xs"
+        />
+      </CardShell>
+    );
+  }
+
   if (draft.tool === "decompose_tasks") {
     const d = data as {
       tasks: { title: string; assigneeId?: string; priority?: string; dueDate?: string; milestoneId?: string }[];

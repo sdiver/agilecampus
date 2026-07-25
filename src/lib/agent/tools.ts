@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { listProjectMilestones } from "@/lib/project";
+import { listMyProjects, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
 import type { TaskStatus } from "@/db/schema";
 
@@ -44,6 +44,30 @@ export async function listTasksFiltered(
   }));
 }
 
+// 跨项目概览：裁去 createdAt 等模型用不上的字段，省 token
+export async function listMyProjectsBrief(actorId: string) {
+  const rows = await listMyProjects(actorId);
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    teamName: p.teamName,
+    taskTotal: p.taskTotal,
+    doneCount: p.doneCount,
+  }));
+}
+
+// 里程碑 id 兜底：快照超限降级后模型仍需 milestoneId
+export async function listMilestonesBrief(actorId: string, projectId: string) {
+  const rows = await listProjectMilestones(actorId, projectId);
+  return rows.map((m) => ({
+    id: m.id,
+    title: m.title,
+    status: m.status,
+    targetDate: m.targetDate,
+  }));
+}
+
 // AI SDK 工具装配：绑定 actorId/projectId，execute 委托纯函数
 export function buildTools(actorId: string, projectId: string) {
   return {
@@ -53,13 +77,25 @@ export function buildTools(actorId: string, projectId: string) {
       execute: async () => queryProgress(actorId, projectId),
     }),
     list_tasks: tool({
-      description: "按状态、负责人、截止日筛选该项目任务。",
+      description:
+        "按状态、负责人、截止日筛选该项目任务，返回含 taskId。改任务前必先用它取回 id。",
       inputSchema: z.object({
         status: z.enum(["todo", "doing", "done"]).optional(),
         assigneeId: z.string().optional().describe("负责人用户 id"),
         dueBefore: z.string().optional().describe("截止日不晚于此日期（YYYY-MM-DD）"),
       }),
       execute: async (filters) => listTasksFiltered(actorId, projectId, filters),
+    }),
+    list_projects: tool({
+      description:
+        "列出我参与的全部项目（跨团队）及其任务统计。用户问「我有哪些项目」或需跨项目比较时用。无需参数。",
+      inputSchema: z.object({}),
+      execute: async () => listMyProjectsBrief(actorId),
+    }),
+    list_milestones: tool({
+      description: "列出该项目全部里程碑，返回含 milestoneId。快照未列出里程碑时用它现查。无需参数。",
+      inputSchema: z.object({}),
+      execute: async () => listMilestonesBrief(actorId, projectId),
     }),
     create_project: tool({
       description: "拟一个新项目草案（在当前项目所属团队下）。仅产草案，需人工确认后落库。",
@@ -125,6 +161,14 @@ export function buildTools(actorId: string, projectId: string) {
       }),
       execute: async (input) => draftEnvelope("plan_sprint", input),
     }),
+    create_milestone: tool({
+      description: "在当前项目下拟一个里程碑草案（阶段节点，如中期答辩）。仅产草案，需人工确认后落库。",
+      inputSchema: z.object({
+        title: z.string(),
+        targetDate: z.string().optional().describe("目标日期 YYYY-MM-DD"),
+      }),
+      execute: async (input) => draftEnvelope("create_milestone", input),
+    }),
   };
 }
 
@@ -133,6 +177,7 @@ export const WRITE_TOOL_NAMES = [
   "decompose_tasks",
   "update_tasks",
   "plan_sprint",
+  "create_milestone",
 ] as const;
 
 export type WriteToolName = (typeof WRITE_TOOL_NAMES)[number];

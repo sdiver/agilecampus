@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { createProject, getProjectForUser } from "@/lib/project";
+import { createMilestone, createProject, getProjectForUser } from "@/lib/project";
 import { createTask, listProjectTasks, updateTask } from "@/lib/task";
 import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
 import { ForbiddenError } from "@/lib/errors";
@@ -43,6 +43,11 @@ const planSprintSchema = z.object({
   milestoneId: z.string(),
   taskIds: z.array(z.string()).min(1),
   dueDate: z.string(),
+});
+
+const createMilestoneSchema = z.object({
+  title: z.string().min(1),
+  targetDate: z.string().optional(),
 });
 
 export type CommitResult = { committed: number; conflicts: string[] };
@@ -108,6 +113,12 @@ export async function commitDraft(
           await updateTask(actorId, id, { milestoneId: d.milestoneId, dueDate: d.dueDate }, { tx });
       });
       return { committed: d.taskIds.length, conflicts: [] };
+    }
+    case "create_milestone": {
+      const d = createMilestoneSchema.parse(draft);
+      // createMilestone 内部以 role === "admin" 收口，非管理员在此被拒
+      await createMilestone(actorId, projectId, d);
+      return { committed: 1, conflicts: [] };
     }
   }
 }

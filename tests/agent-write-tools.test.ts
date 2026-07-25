@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks, projects } from "@/db/schema";
+import { tasks, projects, milestones } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
@@ -28,13 +28,30 @@ const opts = {} as never;
 describe("写工具产草案不落库", () => {
   beforeEach(resetDb);
 
-  it("WRITE_TOOL_NAMES 含四写工具", () => {
+  it("WRITE_TOOL_NAMES 含五写工具", () => {
     expect(WRITE_TOOL_NAMES).toEqual([
       "create_project",
       "decompose_tasks",
       "update_tasks",
       "plan_sprint",
+      "create_milestone",
     ]);
+  });
+
+  it("create_milestone 产草案信封，且 milestones 表无新行", async () => {
+    const { student, project } = await scene();
+    const tools = buildTools(student.id, project.id);
+    const out = await tools.create_milestone.execute!(
+      { title: "中期答辩", targetDate: "2026-11-15" },
+      opts,
+    );
+    expect(out).toMatchObject({
+      __draft: true,
+      tool: "create_milestone",
+      draft: { title: "中期答辩", targetDate: "2026-11-15" },
+    });
+    const rows = await db.select().from(milestones).where(eq(milestones.projectId, project.id));
+    expect(rows).toHaveLength(0);
   });
 
   it("decompose_tasks 产草案信封，且 tasks 表无新行", async () => {
