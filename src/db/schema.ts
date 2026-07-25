@@ -9,6 +9,7 @@ import {
   doublePrecision,
   index,
   jsonb,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
@@ -53,6 +54,7 @@ export const projectStatusEnum = pgEnum("project_status", ["active", "archived"]
 export const milestoneStatusEnum = pgEnum("milestone_status", ["open", "done"]);
 export const taskStatusEnum = pgEnum("task_status", ["todo", "doing", "done"]);
 export const taskPriorityEnum = pgEnum("task_priority", ["low", "medium", "high"]);
+export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
 export type TaskStatus = (typeof taskStatusEnum.enumValues)[number];
 export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
 
@@ -98,6 +100,11 @@ export const tasks = pgTable(
     milestoneId: uuid("milestone_id").references(() => milestones.id, {
       onDelete: "set null",
     }),
+    // 子任务层级：自引用，空＝顶层任务。父任务删则子任务随之（cascade）。
+    // 自引用外键须显式标注 AnyPgColumn，否则 TS 推断成环。
+    parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, {
+      onDelete: "cascade",
+    }),
     title: text("title").notNull(),
     description: text("description"),
     completionNote: text("completion_note"),
@@ -118,6 +125,7 @@ export const tasks = pgTable(
   (t) => [
     index("tasks_project_idx").on(t.projectId),
     index("tasks_assignee_idx").on(t.assigneeId),
+    index("tasks_parent_idx").on(t.parentTaskId),
   ],
 );
 

@@ -1,7 +1,14 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { milestones, projects, teamMembers, teams, tasks } from "@/db/schema";
-import { ForbiddenError } from "./errors";
+import {
+  milestones,
+  projects,
+  teamMembers,
+  teams,
+  tasks,
+  type ProjectStatus,
+} from "@/db/schema";
+import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership, requireTeamRole } from "./team";
 
 export async function createProject(
@@ -35,6 +42,64 @@ export async function listTeamProjects(actorId: string, teamId: string) {
     .from(projects)
     .where(eq(projects.teamId, teamId))
     .orderBy(desc(projects.createdAt));
+}
+
+// 项目编辑/归档：仅团队 admin 可动（与 createProject 同一权限口径）
+export async function updateProject(
+  actorId: string,
+  projectId: string,
+  patch: {
+    name?: string;
+    description?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    status?: ProjectStatus;
+  },
+) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError();
+  if (access.role !== "admin") throw new ForbiddenError();
+
+  // 显式白名单构造，勿用 ...patch 展开：运行时宽对象可夹带 teamId 等越权字段（同 task.ts 之诫）
+  const [updated] = await db
+    .update(projects)
+    .set({
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.description !== undefined && { description: patch.description }),
+      ...(patch.startDate !== undefined && { startDate: patch.startDate }),
+      ...(patch.endDate !== undefined && { endDate: patch.endDate }),
+      ...(patch.status !== undefined && { status: patch.status }),
+    })
+    .where(eq(projects.id, projectId))
+    .returning();
+  if (!updated) throw new AppError("项目不存在");
+  return updated;
+}
+
+// 项目详情聚合：项目本体 + 里程碑 + 任务状态计数。供 Agent API 一次取回全貌。
+export async function getProjectDetail(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError();
+
+  const [projectMilestones, counts] = await Promise.all([
+    listProjectMilestones(actorId, projectId),
+    db
+      .select({ status: tasks.status, count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId))
+      .groupBy(tasks.status),
+  ]);
+
+  const byStatus = { todo: 0, doing: 0, done: 0 };
+  for (const c of counts) byStatus[c.status] = c.count;
+
+  return {
+    project: access.project,
+    role: access.role,
+    milestones: projectMilestones,
+    taskTotal: byStatus.todo + byStatus.doing + byStatus.done,
+    byStatus,
+  };
 }
 
 // 页面/任务层的访问收敛点：项目不存在或非团队成员一律 null，不泄露存在性

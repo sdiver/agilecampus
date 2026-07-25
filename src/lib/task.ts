@@ -42,6 +42,15 @@ async function validateMilestone(projectId: string, milestoneId: string) {
   if (!m) throw new AppError("里程碑不属于该项目");
 }
 
+// 父任务须存在且同项目——防跨项目挂载
+async function validateParentTask(projectId: string, parentTaskId: string) {
+  const [p] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, parentTaskId), eq(tasks.projectId, projectId)));
+  if (!p) throw new AppError("父任务不属于该项目");
+}
+
 export async function createTask(
   actorId: string,
   projectId: string,
@@ -53,6 +62,7 @@ export async function createTask(
     dueDate?: string;
     milestoneId?: string;
     priority?: TaskPriority;
+    parentTaskId?: string;
   },
   opts?: { tx?: DbTx },
 ) {
@@ -60,6 +70,7 @@ export async function createTask(
   const access = await requireTaskWrite(actorId, projectId);
   if (input.assigneeId) await validateAssignee(access.project.teamId, input.assigneeId);
   if (input.milestoneId) await validateMilestone(projectId, input.milestoneId);
+  if (input.parentTaskId) await validateParentTask(projectId, input.parentTaskId);
 
   const [task] = await exec
     .insert(tasks)
@@ -72,6 +83,7 @@ export async function createTask(
       startDate: input.startDate,
       dueDate: input.dueDate,
       milestoneId: input.milestoneId,
+      parentTaskId: input.parentTaskId,
       priority: input.priority ?? "medium",
       sortOrder: Date.now(),
     })
@@ -155,6 +167,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       dueDate: tasks.dueDate,
       sortOrder: tasks.sortOrder,
       milestoneId: tasks.milestoneId,
+      parentTaskId: tasks.parentTaskId,
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
@@ -164,6 +177,89 @@ export async function listProjectTasks(actorId: string, projectId: string) {
     .leftJoin(users, eq(tasks.assigneeId, users.id))
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder);
+}
+
+// 列某任务之下的子任务（直接子级，不递归）
+export async function listSubtasks(actorId: string, parentTaskId: string) {
+  const [parent] = await db
+    .select({ projectId: tasks.projectId })
+    .from(tasks)
+    .where(eq(tasks.id, parentTaskId));
+  if (!parent) throw new AppError("任务不存在");
+  await requireProjectAccess(actorId, parent.projectId);
+
+  return db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      priority: tasks.priority,
+      startDate: tasks.startDate,
+      dueDate: tasks.dueDate,
+      milestoneId: tasks.milestoneId,
+      parentTaskId: tasks.parentTaskId,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+      completionNote: tasks.completionNote,
+      updatedAt: tasks.updatedAt,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(eq(tasks.parentTaskId, parentTaskId))
+    .orderBy(tasks.sortOrder);
+}
+
+// 在某任务下建子任务：projectId 由父任务推得，调用方无须再传。
+// 新建行必无既有子级，故不可能成环，无须环检测。
+export async function createSubtask(
+  actorId: string,
+  parentTaskId: string,
+  input: {
+    title: string;
+    description?: string;
+    assigneeId?: string;
+    startDate?: string;
+    dueDate?: string;
+    milestoneId?: string;
+    priority?: TaskPriority;
+  },
+) {
+  const [parent] = await db
+    .select({ projectId: tasks.projectId })
+    .from(tasks)
+    .where(eq(tasks.id, parentTaskId));
+  if (!parent) throw new AppError("任务不存在");
+  return createTask(actorId, parent.projectId, { ...input, parentTaskId });
+}
+
+// 单任务详情（供 Agent API 按 id 直取）。权限口径同 listProjectTasks：项目成员即可读。
+// 注：「任务不存在」先于权限返回，沿既有 updateTask/deleteTask 之口径（BACKLOG 已录此债）。
+export async function getTaskDetail(actorId: string, taskId: string) {
+  const [row] = await db
+    .select({
+      id: tasks.id,
+      projectId: tasks.projectId,
+      title: tasks.title,
+      description: tasks.description,
+      completionNote: tasks.completionNote,
+      status: tasks.status,
+      priority: tasks.priority,
+      startDate: tasks.startDate,
+      dueDate: tasks.dueDate,
+      milestoneId: tasks.milestoneId,
+      parentTaskId: tasks.parentTaskId,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+      updatedAt: tasks.updatedAt,
+      createdAt: tasks.createdAt,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(eq(tasks.id, taskId));
+  if (!row) throw new AppError("任务不存在");
+  await requireProjectAccess(actorId, row.projectId);
+  return row;
 }
 
 // 设置 predecessor 的后置任务（先删旧再插新）。简单关联：仅防直接成环，不强制阻断执行。
