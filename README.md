@@ -5,7 +5,7 @@
 ## 功能特性
 
 - **团队与角色**：创建/加入团队，admin / teacher / student 三级权限
-- **项目看板**：里程碑 + 拖拽看板（待办/进行中/已完成）+ 任务增强（描述/完成情况/起止日/后置任务）
+- **项目看板**：里程碑 + 拖拽看板 + 任务增强（描述/完成情况/起止日/后置任务）+ 标签筛选与四维度分组（状态/指派人/优先级/里程碑，各分组下拖拽皆生效）
 - **跨项目总览**：`/projects` 聚合我所在全部团队的项目与任务进度
 - **AI 项目助手**：对话式拆解任务，两段式确认后落库（读工具 + 四写兵器草案）
 - **资源占用登记**：团队共享资源（服务器/算力等）的占用登记与时长汇总，纯登记无审批
@@ -72,6 +72,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `/teams/[teamId]/members` | 成员管理（admin 改角色） |
 | `/teams/[teamId]/projects` | 项目列表（admin 创建） |
 | `/teams/[teamId]/resources` | 资源占用登记 + 时长统计 |
+| `/teams/[teamId]/labels` | 团队标签管理（admin 增删改，成员只读） |
 | `/projects` | 所有项目总览（跨团队聚合 + 任务统计） |
 | `/projects/[projectId]` | 项目详情：里程碑 + 看板 + 任务 + AI 助手 |
 | `/projects/[projectId]/timeline` | 项目时间线甘特 |

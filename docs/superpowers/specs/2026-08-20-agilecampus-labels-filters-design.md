@@ -55,7 +55,7 @@ export const labels = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("labels_team_name_unique").on(t.teamId, sql`lower(${t.name})`),
+    uniqueIndex("labels_team_name_unique").on(t.teamId, t.name),
     index("labels_team_idx").on(t.teamId),
   ],
 );
@@ -77,7 +77,7 @@ export const taskLabels = pgTable(
 
 - **团队级而非项目级**：实验室内项目多且同质（"论文""实验""代码""数据清洗"），共享免去每建一项目重建一套标签之苦；亦为日后 `/projects` 总览按标签筛选留门。
 - **颜色存色板键而非 hex**：UI 配色可控，且杜绝任意字符串进入 style 造成样式注入。色板键到 Tailwind class 的映射集中在一处常量表。
-- **名称写入前统一 `trim()`**，唯一索引建在 `lower(name)` 上，使英文标签大小写不敏感去重。
+- **名称写入前统一 `trim()`**；唯一索引建在 `(teamId, name)` 普通两列，大小写不敏感去重由服务层 `lower()` 查询承担——避开 drizzle-kit push 对表达式索引 diff 的不稳。
 
 ## 4. 服务层 `src/lib/label.ts`
 
@@ -159,7 +159,7 @@ Server Component 取数 + 同目录 `actions.ts` 内 Server Action 写入，同�
 
 ### 6.4 任务卡与编辑弹窗
 
-`task-card.tsx` 卡面显示标签胶囊（至多 3 枚 + 「+N」）；编辑弹窗内新增标签多选，提交走 `setTaskLabelsAction`。
+`task-card.tsx` 卡面显示标签胶囊（至多 3 枚 + 「+N」）；编辑弹窗内新增标签多选，随任务保存一并提交。
 
 ## 7. Server Action 改造
 
@@ -175,7 +175,7 @@ const movePatchSchema = z.object({
 ```
 
 仅这四字段可经拖拽改动；校验与授权仍全数落在既有 `updateTask`（含指派人属团队、里程碑属项目之校验），故越权无隙可乘。
-新增 `setTaskLabelsAction({ taskId, projectId, labelIds })`，同样 zod 校验后转调 `setTaskLabels`。
+标签不另设 action，随 `updateTaskAction` 的 `labelIds` 字段一并提交，同构于既有 `successorIds` 之形制。
 
 ## 8. 测试
 
