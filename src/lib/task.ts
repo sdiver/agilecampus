@@ -1,9 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import type { DbTx } from "@/db";
 import {
+  labels,
   milestones,
   taskDependencies,
+  taskLabels,
   tasks,
   users,
   type TaskPriority,
@@ -155,9 +157,37 @@ export async function deleteTask(actorId: string, taskId: string) {
   await db.delete(tasks).where(eq(tasks.id, taskId));
 }
 
+export type TaskLabel = { id: string; name: string; color: string };
+
+// 另发一次查询按 taskId 归并，不用 leftJoin：join 会造成行乘积，
+// 污染既有 orderBy(sortOrder) 与调用方「一行一任务」的假设。
+async function labelsByTask(taskIds: string[]): Promise<Map<string, TaskLabel[]>> {
+  const map = new Map<string, TaskLabel[]>();
+  if (taskIds.length === 0) return map;
+
+  const rows = await db
+    .select({
+      taskId: taskLabels.taskId,
+      id: labels.id,
+      name: labels.name,
+      color: labels.color,
+    })
+    .from(taskLabels)
+    .innerJoin(labels, eq(taskLabels.labelId, labels.id))
+    .where(inArray(taskLabels.taskId, taskIds))
+    .orderBy(labels.name);
+
+  for (const r of rows) {
+    const list = map.get(r.taskId) ?? [];
+    list.push({ id: r.id, name: r.name, color: r.color });
+    map.set(r.taskId, list);
+  }
+  return map;
+}
+
 export async function listProjectTasks(actorId: string, projectId: string) {
   await requireProjectAccess(actorId, projectId);
-  return db
+  const rows = await db
     .select({
       id: tasks.id,
       title: tasks.title,
@@ -178,6 +208,9 @@ export async function listProjectTasks(actorId: string, projectId: string) {
     .leftJoin(users, eq(tasks.assigneeId, users.id))
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder);
+
+  const byTask = await labelsByTask(rows.map((r) => r.id));
+  return rows.map((r) => ({ ...r, labels: byTask.get(r.id) ?? [] }));
 }
 
 // 列某任务之下的子任务（直接子级，不递归）
@@ -260,7 +293,8 @@ export async function getTaskDetail(actorId: string, taskId: string) {
     .where(eq(tasks.id, taskId));
   if (!row) throw new AppError("任务不存在");
   await requireProjectAccess(actorId, row.projectId);
-  return row;
+  const byTask = await labelsByTask([row.id]);
+  return { ...row, labels: byTask.get(row.id) ?? [] };
 }
 
 // 设置 predecessor 的后置任务（先删旧再插新）。简单关联：仅防直接成环，不强制阻断执行。
