@@ -6,6 +6,7 @@ import {
   applyFilters,
   type FilterableTask,
 } from "@/lib/board-filters";
+import { deriveColumns } from "@/lib/board-columns";
 
 const A = "11111111-1111-1111-1111-111111111111";
 const B = "22222222-2222-2222-2222-222222222222";
@@ -121,5 +122,49 @@ describe("applyFilters", () => {
     ];
     const f = { ...EMPTY_FILTERS, assignee: [A], priority: ["high"] };
     expect(applyFilters(list, f, today)).toHaveLength(1);
+  });
+});
+
+describe("deriveColumns", () => {
+  const ctx = {
+    members: [
+      { id: A, name: "周瑜" },
+      { id: B, name: "鲁肃" },
+    ],
+    milestones: [{ id: M, name: "一期" }],
+  };
+
+  it("按状态分组：三列，patch 改 status", () => {
+    const cols = deriveColumns("status", ctx);
+    expect(cols.map((c) => c.key)).toEqual(["todo", "doing", "done"]);
+    expect(cols[1].patch).toEqual({ status: "doing" });
+    expect(cols[1].matches(task({ status: "doing" }))).toBe(true);
+    expect(cols[1].matches(task({ status: "todo" }))).toBe(false);
+  });
+
+  it("按指派人分组：每成员一列 + 未指派列，patch 改 assigneeId", () => {
+    const cols = deriveColumns("assignee", ctx);
+    expect(cols.map((c) => c.key)).toEqual([A, B, "none"]);
+    expect(cols[0].patch).toEqual({ assigneeId: A });
+    expect(cols[2].patch).toEqual({ assigneeId: null });
+    expect(cols[2].matches(task({ assigneeId: null }))).toBe(true);
+  });
+
+  it("按优先级分组：高中低三列，patch 改 priority", () => {
+    const cols = deriveColumns("priority", ctx);
+    expect(cols.map((c) => c.key)).toEqual(["high", "medium", "low"]);
+    expect(cols[0].patch).toEqual({ priority: "high" });
+  });
+
+  it("按里程碑分组：每里程碑一列 + 无里程碑列", () => {
+    const cols = deriveColumns("milestone", ctx);
+    expect(cols.map((c) => c.key)).toEqual([M, "none"]);
+    expect(cols[1].patch).toEqual({ milestoneId: null });
+    expect(cols[0].matches(task({ milestoneId: M }))).toBe(true);
+  });
+
+  it("成员为空时按指派人分组仍有未指派列", () => {
+    const cols = deriveColumns("assignee", { members: [], milestones: [] });
+    expect(cols.map((c) => c.key)).toEqual(["none"]);
   });
 });
