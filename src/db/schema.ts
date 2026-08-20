@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  primaryKey,
   date,
   doublePrecision,
   index,
@@ -220,5 +221,51 @@ export const resourceUsages = pgTable(
   (t) => [
     index("resource_usages_team_idx").on(t.teamId),
     index("resource_usages_user_idx").on(t.userId),
+  ],
+);
+
+export const labelColorEnum = pgEnum("label_color", [
+  "slate",
+  "red",
+  "amber",
+  "green",
+  "blue",
+  "violet",
+  "pink",
+]);
+export type LabelColor = (typeof labelColorEnum.enumValues)[number];
+
+// 标签挂在团队而非项目：实验室内项目多且同质，共享一套免去每建一项目重建之苦。
+// 唯一索引建在普通两列，大小写不敏感去重由 lib/label.ts 的 lower() 查询承担。
+export const labels = pgTable(
+  "labels",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: labelColorEnum("color").notNull().default("slate"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("labels_team_name_unique").on(t.teamId, t.name),
+    index("labels_team_idx").on(t.teamId),
+  ],
+);
+
+export const taskLabels = pgTable(
+  "task_labels",
+  {
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    labelId: uuid("label_id")
+      .notNull()
+      .references(() => labels.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.taskId, t.labelId] }),
+    index("task_labels_label_idx").on(t.labelId),
   ],
 );
