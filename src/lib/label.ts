@@ -1,8 +1,9 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { labels, type LabelColor } from "@/db/schema";
+import { labels, taskLabels, tasks, type LabelColor } from "@/db/schema";
 import { AppError, ForbiddenError, isUniqueViolation } from "./errors";
 import { getTeamMembership, requireTeamRole } from "./team";
+import { requireTaskWrite } from "./task";
 
 const LABEL_NAME_MAX = 20;
 
@@ -87,4 +88,32 @@ export async function deleteLabel(actorId: string, labelId: string) {
   await requireLabelAdmin(actorId, labelId);
   // task_labels 的 cascade 会自动撕下所有贴附
   await db.delete(labels).where(eq(labels.id, labelId));
+}
+
+// 全量替换某任务的标签，同构于 lib/task.ts 的 setTaskSuccessors
+export async function setTaskLabels(actorId: string, taskId: string, labelIds: string[]) {
+  const [task] = await db
+    .select({ id: tasks.id, projectId: tasks.projectId })
+    .from(tasks)
+    .where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+
+  const access = await requireTaskWrite(actorId, task.projectId);
+  const unique = [...new Set(labelIds)];
+
+  if (unique.length > 0) {
+    const owned = await db
+      .select({ id: labels.id })
+      .from(labels)
+      .where(and(eq(labels.teamId, access.project.teamId), inArray(labels.id, unique)));
+    // 数目对不上即有标签不属本团队——杜绝跨团队挂载
+    if (owned.length !== unique.length) throw new AppError("标签不属于该团队");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(taskLabels).where(eq(taskLabels.taskId, taskId));
+    if (unique.length > 0) {
+      await tx.insert(taskLabels).values(unique.map((labelId) => ({ taskId, labelId })));
+    }
+  });
 }

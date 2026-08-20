@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
-import { createLabel, listTeamLabels, renameLabel, deleteLabel } from "@/lib/label";
+import { createProject } from "@/lib/project";
+import { createTask, listProjectTasks } from "@/lib/task";
+import {
+  createLabel,
+  listTeamLabels,
+  renameLabel,
+  deleteLabel,
+  setTaskLabels,
+} from "@/lib/label";
 import { resetDb } from "./helpers";
 
 async function makeUser(email: string) {
@@ -129,5 +137,75 @@ describe("deleteLabel", () => {
     await expect(
       deleteLabel(owner.id, "00000000-0000-0000-0000-000000000000"),
     ).rejects.toThrow("标签不存在");
+  });
+});
+
+describe("setTaskLabels", () => {
+  beforeEach(resetDb);
+
+  it("student 可贴标签，全量替换", async () => {
+    const { owner, team, student } = await scene();
+    const project = await createProject(owner.id, team.id, { name: "赤壁演习" });
+    const task = await createTask(student.id, project.id, { title: "撰写问卷" });
+    const paper = await createLabel(owner.id, team.id, { name: "论文" });
+    const code = await createLabel(owner.id, team.id, { name: "代码" });
+
+    await setTaskLabels(student.id, task.id, [paper.id, code.id]);
+    await setTaskLabels(student.id, task.id, [code.id]);
+
+    const [row] = await listProjectTasks(student.id, project.id);
+    expect(row.labels.map((l) => l.name)).toEqual(["代码"]);
+  });
+
+  it("重复 labelId 去重后不报错", async () => {
+    const { owner, team, student } = await scene();
+    const project = await createProject(owner.id, team.id, { name: "赤壁演习" });
+    const task = await createTask(student.id, project.id, { title: "撰写问卷" });
+    const paper = await createLabel(owner.id, team.id, { name: "论文" });
+
+    await setTaskLabels(student.id, task.id, [paper.id, paper.id]);
+    const [row] = await listProjectTasks(student.id, project.id);
+    expect(row.labels).toHaveLength(1);
+  });
+
+  it("teacher 贴标签被拒（只读角色）", async () => {
+    const { owner, team, teacher, student } = await scene();
+    const project = await createProject(owner.id, team.id, { name: "赤壁演习" });
+    const task = await createTask(student.id, project.id, { title: "撰写问卷" });
+    const paper = await createLabel(owner.id, team.id, { name: "论文" });
+    await expect(setTaskLabels(teacher.id, task.id, [paper.id])).rejects.toThrow("没有权限");
+  });
+
+  it("跨团队标签挂载被拒", async () => {
+    const { owner, team, student } = await scene();
+    const project = await createProject(owner.id, team.id, { name: "赤壁演习" });
+    const task = await createTask(student.id, project.id, { title: "撰写问卷" });
+
+    const other = await makeUser("other-admin@example.com");
+    const otherTeam = await createTeam(other.id, "西蜀实验室");
+    const alien = await createLabel(other.id, otherTeam.id, { name: "外营标签" });
+
+    await expect(setTaskLabels(student.id, task.id, [alien.id])).rejects.toThrow(
+      "标签不属于该团队",
+    );
+  });
+
+  it("任务不存在则报错", async () => {
+    const { student } = await scene();
+    await expect(
+      setTaskLabels(student.id, "00000000-0000-0000-0000-000000000000", []),
+    ).rejects.toThrow("任务不存在");
+  });
+
+  it("删标签后任务上的贴附随之消失", async () => {
+    const { owner, team, student } = await scene();
+    const project = await createProject(owner.id, team.id, { name: "赤壁演习" });
+    const task = await createTask(student.id, project.id, { title: "撰写问卷" });
+    const paper = await createLabel(owner.id, team.id, { name: "论文" });
+    await setTaskLabels(student.id, task.id, [paper.id]);
+
+    await deleteLabel(owner.id, paper.id);
+    const [row] = await listProjectTasks(student.id, project.id);
+    expect(row.labels).toEqual([]);
   });
 });

@@ -23,7 +23,8 @@ async function requireProjectAccess(actorId: string, projectId: string) {
   return access;
 }
 
-async function requireTaskWrite(actorId: string, projectId: string) {
+// 供 lib/label.ts 复用：贴标签属任务写操作，权限口径须与 createTask/updateTask 一致
+export async function requireTaskWrite(actorId: string, projectId: string) {
   const access = await requireProjectAccess(actorId, projectId);
   if (!TASK_WRITE_ROLES.includes(access.role)) throw new ForbiddenError();
   return access;
