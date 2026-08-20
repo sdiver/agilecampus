@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { createTask, updateTask, deleteTask, setTaskSuccessors } from "@/lib/task";
+import { setTaskLabels } from "@/lib/label";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
@@ -86,27 +87,36 @@ export async function createMilestoneAction(
   return null;
 }
 
+// 拖拽可改的字段白名单。校验与授权仍全数落在 updateTask
+//（指派人须属团队、里程碑须属项目），故此处只做形状校验。
+const movePatchSchema = z.object({
+  status: z.enum(["todo", "doing", "done"]).optional(),
+  assigneeId: z.uuid().nullable().optional(),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+  milestoneId: z.uuid().nullable().optional(),
+});
+
 const moveTaskSchema = z.object({
   taskId: z.uuid(),
   projectId: z.uuid(),
-  status: z.enum(["todo", "doing", "done"]),
+  patch: movePatchSchema,
 });
 
 export async function moveTaskAction(input: {
   taskId: string;
   projectId: string;
-  status: "todo" | "doing" | "done";
+  patch: z.infer<typeof movePatchSchema>;
 }): Promise<FormState> {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
   const parsed = moveTaskSchema.safeParse(input);
   if (!parsed.success) return { error: "参数无效" };
+  // 空补丁无事可做，视为非法请求
+  if (Object.keys(parsed.data.patch).length === 0) return { error: "参数无效" };
 
   try {
-    await updateTask(session.user.id, parsed.data.taskId, {
-      status: parsed.data.status,
-    });
+    await updateTask(session.user.id, parsed.data.taskId, parsed.data.patch);
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;
@@ -150,6 +160,10 @@ export async function updateTaskAction(
     .getAll("successorIds")
     .map(String)
     .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
+  const labelIds = formData
+    .getAll("labelIds")
+    .map(String)
+    .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
   try {
     await updateTask(session.user.id, taskId, {
       title: patch.title,
@@ -162,6 +176,7 @@ export async function updateTaskAction(
       completionNote: patch.completionNote ?? null,
     });
     await setTaskSuccessors(session.user.id, taskId, successorIds);
+    await setTaskLabels(session.user.id, taskId, labelIds);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限修改任务" };
     if (e instanceof AppError) return { error: e.message };
