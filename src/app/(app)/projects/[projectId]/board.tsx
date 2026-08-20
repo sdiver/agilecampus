@@ -9,6 +9,8 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { deriveColumns, type BoardColumn, type ColumnPatch } from "@/lib/board-columns";
+import type { GroupBy } from "@/lib/board-filters";
 import { moveTaskAction } from "./actions";
 import { TaskCard, type Option } from "./task-card";
 
@@ -24,50 +26,41 @@ export type BoardTask = {
   assigneeName: string | null;
   assigneeId: string | null;
   milestoneId: string | null;
+  labels: { id: string; name: string; color: string }[];
 };
 
-const COLUMNS = [
-  { key: "todo", label: "待办", text: "text-todo" },
-  { key: "doing", label: "进行中", text: "text-doing" },
-  { key: "done", label: "已完成", text: "text-done" },
-] as const;
-
-type ColumnKey = (typeof COLUMNS)[number]["key"];
-
 function Column({
-  columnKey,
-  label,
-  text,
+  column,
   tasks,
   projectId,
   canWrite,
   members,
   milestones,
   allTasks,
+  allLabels,
   dependencies,
 }: {
-  columnKey: ColumnKey;
-  label: string;
-  text: string;
+  column: BoardColumn;
   tasks: BoardTask[];
   projectId: string;
   canWrite: boolean;
   members: Option[];
   milestones: Option[];
   allTasks: { id: string; title: string }[];
+  allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: columnKey });
+  const { setNodeRef, isOver } = useDroppable({ id: column.key });
 
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-40 space-y-2 rounded-xl border border-line p-3 transition-colors ${
+      className={`min-h-40 w-72 shrink-0 space-y-2 rounded-xl border border-line p-3 transition-colors ${
         isOver ? "bg-primary-soft" : "bg-sunken"
       }`}
     >
-      <h3 className={`flex items-center gap-2 text-sm font-semibold ${text}`}>
-        {label}
+      <h3 className={`flex items-center gap-2 text-sm font-semibold ${column.tone}`}>
+        {column.label}
         <span className="ac-badge bg-surface text-ink-soft">{tasks.length}</span>
       </h3>
       {tasks.map((t) => (
@@ -79,6 +72,7 @@ function Column({
           members={members}
           milestones={milestones}
           allTasks={allTasks}
+          allLabels={allLabels}
           dependencies={dependencies}
         />
       ))}
@@ -89,43 +83,50 @@ function Column({
 export function Board({
   projectId,
   tasks,
+  groupBy,
   canWrite,
   members,
   milestones,
   allTasks,
+  allLabels,
   dependencies,
 }: {
   projectId: string;
   tasks: BoardTask[];
+  groupBy: GroupBy;
   canWrite: boolean;
   members: Option[];
   milestones: Option[];
   allTasks: { id: string; title: string }[];
+  allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,
-    (current, move: { taskId: string; status: ColumnKey }) =>
-      current.map((t) => (t.id === move.taskId ? { ...t, status: move.status } : t)),
+    (current, move: { taskId: string; patch: ColumnPatch }) =>
+      current.map((t) => (t.id === move.taskId ? { ...t, ...move.patch } : t)),
   );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
+  const columns = deriveColumns(groupBy, { members, milestones });
+
   function handleDragEnd(event: DragEndEvent) {
     const taskId = String(event.active.id);
     const over = event.over?.id;
     if (!over) return;
-    const status = over as ColumnKey;
+    const column = columns.find((c) => c.key === String(over));
     const task = optimisticTasks.find((t) => t.id === taskId);
-    if (!task || task.status === status) return;
+    // 已在目标列则无须提交
+    if (!column || !task || column.matches(task)) return;
 
     startTransition(async () => {
       setError(null);
-      moveOptimistic({ taskId, status });
-      const res = await moveTaskAction({ taskId, projectId, status });
+      moveOptimistic({ taskId, patch: column.patch });
+      const res = await moveTaskAction({ taskId, projectId, patch: column.patch });
       if (res?.error) setError(res.error);
     });
   }
@@ -133,19 +134,19 @@ export function Board({
   return (
     <DndContext id={`board-${projectId}`} sensors={sensors} onDragEnd={handleDragEnd}>
       {error && <p className="text-sm text-high">{error}</p>}
-      <div className="grid grid-cols-3 gap-4">
-        {COLUMNS.map((col) => (
+      {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {columns.map((col) => (
           <Column
             key={col.key}
-            columnKey={col.key}
-            label={col.label}
-            text={col.text}
-            tasks={optimisticTasks.filter((t) => t.status === col.key)}
+            column={col}
+            tasks={optimisticTasks.filter((t) => col.matches(t))}
             projectId={projectId}
             canWrite={canWrite}
             members={members}
             milestones={milestones}
             allTasks={allTasks}
+            allLabels={allLabels}
             dependencies={dependencies}
           />
         ))}

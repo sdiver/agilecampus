@@ -7,17 +7,23 @@ import { conversations, messages as messagesTable } from "@/db/schema";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listTeamMembers } from "@/lib/team";
 import { listProjectTasks, listProjectDependencies } from "@/lib/task";
+import { listTeamLabels } from "@/lib/label";
+import { parseFilters, applyFilters } from "@/lib/board-filters";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
 import { ChatPanel } from "./chat-panel";
+import { FilterBar } from "./filter-bar";
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { projectId } = await params;
+  const sp = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!z.uuid().safeParse(projectId).success) notFound();
@@ -26,12 +32,24 @@ export default async function ProjectPage({
   if (!access) notFound();
   const { project, role } = access;
 
-  const [projectMilestones, projectTasks, members, dependencies] = await Promise.all([
+  const [projectMilestones, projectTasks, members, dependencies, teamLabels] = await Promise.all([
     listProjectMilestones(session.user.id, projectId),
     listProjectTasks(session.user.id, projectId),
     listTeamMembers(project.teamId),
     listProjectDependencies(session.user.id, projectId),
+    listTeamLabels(session.user.id, project.teamId),
   ]);
+
+  const filters = parseFilters(
+    new URLSearchParams(
+      Object.entries(sp).flatMap(([k, v]) =>
+        typeof v === "string" ? [[k, v] as [string, string]] : [],
+      ),
+    ),
+  );
+  // 「今日」在服务端按本地时区取 YYYY-MM-DD，随后仅作字符串比较
+  const today = new Date().toLocaleDateString("sv-SE");
+  const visibleTasks = applyFilters(projectTasks, filters, today);
 
   const canWrite = role === "admin" || role === "student";
   const isAdmin = role === "admin";
@@ -83,9 +101,17 @@ export default async function ProjectPage({
 
       <section className="space-y-3">
         <h2 className="font-medium text-ink">看板</h2>
+        <FilterBar
+          members={members.map((m) => ({ id: m.id, name: m.name }))}
+          milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
+          labels={teamLabels.map((l) => ({ id: l.id, name: l.name }))}
+          visible={visibleTasks.length}
+          total={projectTasks.length}
+        />
         <Board
           projectId={projectId}
-          tasks={projectTasks.map((t) => ({
+          groupBy={filters.group}
+          tasks={visibleTasks.map((t) => ({
             id: t.id,
             title: t.title,
             description: t.description,
@@ -97,11 +123,13 @@ export default async function ProjectPage({
             assigneeName: t.assigneeName,
             assigneeId: t.assigneeId,
             milestoneId: t.milestoneId,
+            labels: t.labels,
           }))}
           canWrite={canWrite}
           members={members}
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
           allTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
+          allLabels={teamLabels.map((l) => ({ id: l.id, name: l.name }))}
           dependencies={dependencies}
         />
       </section>
