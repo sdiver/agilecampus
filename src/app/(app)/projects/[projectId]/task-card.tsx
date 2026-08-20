@@ -9,6 +9,7 @@ import {
   type FormState,
   type UpdateTaskState,
 } from "./actions";
+import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
 import type { BoardTask } from "./board";
 
 export type Option = { id: string; name: string };
@@ -27,6 +28,7 @@ export function TaskCard({
   members,
   milestones,
   allTasks,
+  allLabels,
   dependencies,
 }: {
   task: BoardTask;
@@ -35,6 +37,7 @@ export function TaskCard({
   members: Option[];
   milestones: Option[];
   allTasks: TaskOption[];
+  allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
 }) {
   const [editing, setEditing] = useState(false);
@@ -77,6 +80,21 @@ export function TaskCard({
             {task.priority}
           </span>
         </p>
+        {task.labels.length > 0 && (
+          <p className="mt-1 flex flex-wrap items-center gap-1">
+            {task.labels.slice(0, 3).map((l) => (
+              <span
+                key={l.id}
+                className={`ac-badge ${LABEL_COLOR_CLASS[l.color] ?? LABEL_COLOR_CLASS.slate}`}
+              >
+                {l.name}
+              </span>
+            ))}
+            {task.labels.length > 3 && (
+              <span className="text-xs text-ink-faint">+{task.labels.length - 3}</span>
+            )}
+          </p>
+        )}
         {task.description && (
           <p className="mt-1 text-xs text-ink-soft line-clamp-2">{task.description}</p>
         )}
@@ -107,6 +125,7 @@ export function TaskCard({
           members={members}
           milestones={milestones}
           allTasks={allTasks}
+          allLabels={allLabels}
           dependencies={dependencies}
           onClose={() => setEditing(false)}
         />
@@ -121,6 +140,7 @@ function EditModal({
   members,
   milestones,
   allTasks,
+  allLabels,
   dependencies,
   onClose,
 }: {
@@ -129,6 +149,7 @@ function EditModal({
   members: Option[];
   milestones: Option[];
   allTasks: TaskOption[];
+  allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
   onClose: () => void;
 }) {
@@ -243,6 +264,24 @@ function EditModal({
               <input type="date" name="dueDate" defaultValue={task.dueDate ?? ""} className="ac-field text-sm" />
             </Field>
           </div>
+
+          {allLabels.length > 0 && (
+            <Field label="标签（可多选）">
+              <select
+                multiple
+                name="labelIds"
+                defaultValue={task.labels.map((l) => l.id)}
+                className="ac-field text-sm"
+                size={Math.min(4, Math.max(2, allLabels.length))}
+              >
+                {allLabels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <Field label="后置任务（可多选）">
             <select
