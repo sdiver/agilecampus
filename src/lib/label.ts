@@ -54,3 +54,37 @@ export async function createLabel(
     throw e;
   }
 }
+
+// 标签管理权限：先由 labelId 取得 teamId，再校验 admin
+async function requireLabelAdmin(actorId: string, labelId: string) {
+  const [label] = await db.select().from(labels).where(eq(labels.id, labelId));
+  if (!label) throw new AppError("标签不存在");
+  await requireTeamRole(actorId, label.teamId, ["admin"]);
+  return label;
+}
+
+export async function renameLabel(
+  actorId: string,
+  labelId: string,
+  patch: { name?: string; color?: LabelColor },
+) {
+  const label = await requireLabelAdmin(actorId, labelId);
+  const name = patch.name === undefined ? undefined : normalizeName(patch.name);
+  if (name !== undefined) await assertNameFree(label.teamId, name, labelId);
+
+  const [updated] = await db
+    .update(labels)
+    .set({
+      ...(name !== undefined && { name }),
+      ...(patch.color !== undefined && { color: patch.color }),
+    })
+    .where(eq(labels.id, labelId))
+    .returning();
+  return updated;
+}
+
+export async function deleteLabel(actorId: string, labelId: string) {
+  await requireLabelAdmin(actorId, labelId);
+  // task_labels 的 cascade 会自动撕下所有贴附
+  await db.delete(labels).where(eq(labels.id, labelId));
+}

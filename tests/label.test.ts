@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
-import { createLabel, listTeamLabels } from "@/lib/label";
+import { createLabel, listTeamLabels, renameLabel, deleteLabel } from "@/lib/label";
 import { resetDb } from "./helpers";
 
 async function makeUser(email: string) {
@@ -73,5 +73,61 @@ describe("listTeamLabels", () => {
   it("非成员读取被拒", async () => {
     const { outsider, team } = await scene();
     await expect(listTeamLabels(outsider.id, team.id)).rejects.toThrow("没有权限");
+  });
+});
+
+describe("renameLabel", () => {
+  beforeEach(resetDb);
+
+  it("admin 可改名换色", async () => {
+    const { owner, team } = await scene();
+    const label = await createLabel(owner.id, team.id, { name: "论文" });
+    const updated = await renameLabel(owner.id, label.id, { name: "论文写作", color: "violet" });
+    expect(updated.name).toBe("论文写作");
+    expect(updated.color).toBe("violet");
+  });
+
+  it("改名撞上同团队既有标签被拒", async () => {
+    const { owner, team } = await scene();
+    await createLabel(owner.id, team.id, { name: "论文" });
+    const other = await createLabel(owner.id, team.id, { name: "实验" });
+    await expect(renameLabel(owner.id, other.id, { name: "论文" })).rejects.toThrow("标签已存在");
+  });
+
+  it("改成自身原名不算重名", async () => {
+    const { owner, team } = await scene();
+    const label = await createLabel(owner.id, team.id, { name: "论文" });
+    const updated = await renameLabel(owner.id, label.id, { name: "论文", color: "red" });
+    expect(updated.color).toBe("red");
+  });
+
+  it("student 改标签被拒", async () => {
+    const { owner, team, student } = await scene();
+    const label = await createLabel(owner.id, team.id, { name: "论文" });
+    await expect(renameLabel(student.id, label.id, { name: "改名" })).rejects.toThrow("没有权限");
+  });
+});
+
+describe("deleteLabel", () => {
+  beforeEach(resetDb);
+
+  it("admin 可删标签", async () => {
+    const { owner, team } = await scene();
+    const label = await createLabel(owner.id, team.id, { name: "论文" });
+    await deleteLabel(owner.id, label.id);
+    expect(await listTeamLabels(owner.id, team.id)).toEqual([]);
+  });
+
+  it("student 删标签被拒", async () => {
+    const { owner, team, student } = await scene();
+    const label = await createLabel(owner.id, team.id, { name: "论文" });
+    await expect(deleteLabel(student.id, label.id)).rejects.toThrow("没有权限");
+  });
+
+  it("标签不存在则报错", async () => {
+    const { owner } = await scene();
+    await expect(
+      deleteLabel(owner.id, "00000000-0000-0000-0000-000000000000"),
+    ).rejects.toThrow("标签不存在");
   });
 });
