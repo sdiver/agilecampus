@@ -33,9 +33,14 @@ export function FeishuCard({ boundName, boundAtLabel, notice }: Props) {
           </form>
         </div>
       ) : (
-        <a href="/api/auth/feishu/login" className="ac-btn inline-block text-sm">
-          绑定飞书
-        </a>
+        <>
+          {/* /api/auth/feishu/login 是 Route Handler 而非页面（规则误判）；OAuth 起点须整页跳转，
+              走 next/link 的客户端路由会拿不到服务端 302。 */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/api/auth/feishu/login" className="ac-btn inline-block text-sm">
+            绑定飞书
+          </a>
+        </>
       )}
     </section>
   );

@@ -33,10 +33,10 @@ export function FeishuLogin() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.h5sdk) return;
-    setStatus("silent");
 
     const pageUrl = window.location.href.split("#")[0];
     (async () => {
+      setStatus("silent");
       try {
         const res = await fetch(`/api/feishu/jssdk-config?url=${encodeURIComponent(pageUrl)}`);
         if (!res.ok) throw new Error("config fetch failed");
@@ -74,6 +74,9 @@ export function FeishuLogin() {
       {status === "failed" && (
         <p className="text-center text-xs text-high">飞书免登失败，请点下方按钮</p>
       )}
+      {/* /api/auth/feishu/login 是 Route Handler 而非页面（规则误判）；OAuth 起点须整页跳转，
+          走 next/link 的客户端路由会拿不到服务端 302。 */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/api/auth/feishu/login" className="ac-btn ac-btn-ghost block w-full text-center">
         飞书登录
       </a>

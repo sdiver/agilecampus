@@ -42,10 +42,14 @@ export function TaskCard({
 }) {
   const [editing, setEditing] = useState(false);
   const searchParams = useSearchParams();
-  useEffect(() => {
-    // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）
-    if (canWrite && searchParams.get("task") === task.id) setEditing(true);
-  }, [searchParams, task.id, canWrite]);
+  // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）。
+  // 于渲染期调整而非 useEffect：避免多渲染一轮，且用户手动关闭后不会被 effect 重开。
+  const deepLinked = canWrite && searchParams.get("task") === task.id;
+  const [prevDeepLinked, setPrevDeepLinked] = useState(false);
+  if (deepLinked !== prevDeepLinked) {
+    setPrevDeepLinked(deepLinked);
+    if (deepLinked) setEditing(true);
+  }
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: !canWrite || editing,
